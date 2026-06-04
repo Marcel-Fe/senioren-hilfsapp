@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#1d4ed8" />
+    <title>Senioren-Alltagsbegleiter</title>
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="icons/icon.svg" />
+    <!-- ?v= ist die Cache-Version. Bei Änderungen hochzählen, damit der Service-Worker neu lädt. -->
+    <link rel="stylesheet" href="css/styles.css?v=0.0.1" />
+  </head>
+  <body>
+    <header class="app-header">
+      <span class="app-logo" aria-hidden="true">🧓</span>
+      <h1 class="app-title">Senioren-Alltagsbegleiter</h1>
+    </header>
+
+    <main id="app" class="app-main" aria-live="polite"><!-- Inhalt wird von app.js gerendert --></main>
+
+    <nav id="tabbar" class="tabbar" aria-label="Hauptmenü"><!-- Tabs von app.js --></nav>
+
+    <script src="js/app.js?v=0.0.1"></script>
+  </body>
+</html>

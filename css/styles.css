@@ -1,0 +1,198 @@
+/* Seniorengerechtes Design: große Schrift, hohe Kontraste, klare Flächen.
+   Alle Farben/Maße als Tokens an einer Stelle, damit Anpassungen leicht sind. */
+
+:root {
+  --bg: #f4f6fa;
+  --surface: #ffffff;
+  --text: #16202e;
+  --text-muted: #51607a;
+  --primary: #1d4ed8;
+  --primary-text: #ffffff;
+  --border: #d2dae8;
+  --danger: #b42318;
+  --radius: 16px;
+  --header-h: 64px;
+  --tabbar-h: 76px;
+  --maxw: 720px;
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 18px;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.55;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Sichtbarer Fokus für Tastatur-Bedienung. */
+:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ---------- Kopfzeile ---------- */
+.app-header {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: var(--header-h);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  z-index: 10;
+}
+.app-logo {
+  font-size: 1.8rem;
+}
+.app-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+/* ---------- Hauptbereich ---------- */
+.app-main {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: calc(var(--header-h) + 20px) 16px calc(var(--tabbar-h) + 24px);
+}
+
+.view-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+.view-subtitle {
+  font-size: 1.15rem;
+  color: var(--text-muted);
+  margin: 0 0 20px;
+}
+
+/* ---------- Kacheln & Karten ---------- */
+.tile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+  min-height: 110px;
+}
+.tile:active {
+  background: var(--bg);
+}
+.tile .tile-icon {
+  font-size: 2rem;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  font-size: 1.1rem;
+}
+.card + .card {
+  margin-top: 14px;
+}
+.muted {
+  color: var(--text-muted);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.list li {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  font-size: 1.15rem;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.list li + li {
+  margin-top: 12px;
+}
+
+/* ---------- Buttons ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 16px 20px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--primary);
+  color: var(--primary-text);
+  cursor: pointer;
+}
+.btn:active {
+  filter: brightness(0.95);
+}
+.btn[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* ---------- Untere Tab-Navigation ---------- */
+.tabbar {
+  position: fixed;
+  inset: auto 0 0 0;
+  height: var(--tabbar-h);
+  display: flex;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom);
+  z-index: 10;
+}
+.tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tab .tab-icon {
+  font-size: 1.5rem;
+}
+.tab[aria-current="page"] {
+  color: var(--primary);
+}

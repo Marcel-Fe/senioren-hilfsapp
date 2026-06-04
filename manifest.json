@@ -1,0 +1,19 @@
+{
+  "name": "Senioren-Alltagsbegleiter",
+  "short_name": "Alltagsbegleiter",
+  "description": "Digitale Lebensakte: Dokumente, Gesundheit, Pflege und Erinnerungen.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#f4f6fa",
+  "theme_color": "#1d4ed8",
+  "lang": "de",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

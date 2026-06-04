@@ -1,0 +1,11 @@
+node_modules/
+.DS_Store
+Thumbs.db
+*.log
+.env
+.env.*
+worker/.wrangler/
+*.tmp
+
+# Lokale Planungs-Notizen (nicht ins öffentliche Repo)
+claude.md/
