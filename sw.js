@@ -1,14 +1,17 @@
 /* Service-Worker: macht die App offline-fähig und installierbar.
    CACHE_VERSION bei jeder Asset-Änderung erhöhen (muss zu ?v= in index.html passen). */
 
-const CACHE_VERSION = "0.0.1";
+const CACHE_VERSION = "0.0.2";
 const CACHE_NAME = `alltagsbegleiter-${CACHE_VERSION}`;
 
 const ASSETS = [
   ".",
   "index.html",
-  "css/styles.css?v=0.0.1",
-  "js/app.js?v=0.0.1",
+  "css/styles.css?v=0.0.2",
+  "js/db.js?v=0.0.2",
+  "js/ocr.js?v=0.0.2",
+  "js/documents.js?v=0.0.2",
+  "js/app.js?v=0.0.2",
   "manifest.json",
   "icons/icon.svg",
 ];

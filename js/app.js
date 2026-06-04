@@ -21,6 +21,8 @@ const app = document.getElementById("app");
 const tabbar = document.getElementById("tabbar");
 
 function setTab(tabId) {
+  // Beim Tab-Wechsel die Dokumente-Ansicht auf die Liste zurücksetzen.
+  if (tabId !== state.tab && typeof Documents !== "undefined") Documents.toList();
   state.tab = tabId;
   render();
   window.scrollTo({ top: 0 });
@@ -87,12 +89,6 @@ function renderMain() {
   switch (state.tab) {
     case "dashboard":
       return viewDashboard();
-    case "dokumente":
-      return placeholderView(
-        "Dokumente",
-        "Briefe, Rezepte und Bescheide sicher ablegen.",
-        "Hier erscheinen Ihre Dokumente. Das Hochladen wird im nächsten Schritt eingebaut.",
-      );
     case "medikamente":
       return placeholderView(
         "Medikamente",
@@ -125,8 +121,13 @@ function renderTabbar() {
 }
 
 function render() {
-  app.innerHTML = renderMain();
   tabbar.innerHTML = renderTabbar();
+  // Der Dokumente-Tab wird vom eigenen Modul gerendert (lädt asynchron aus der DB).
+  if (state.tab === "dokumente") {
+    Documents.renderInto(app);
+    return;
+  }
+  app.innerHTML = renderMain();
 }
 
 // ---- Ereignisse (eine zentrale Stelle per Delegation) ----
