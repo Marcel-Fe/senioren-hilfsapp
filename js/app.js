@@ -40,6 +40,7 @@ const MENU = [
     ],
   },
   { label: "Mediplan", icon: "💊", tab: "mediplan" },
+  { label: "Gesundheitsakte", icon: "❤️", tab: "gesundheit" },
   {
     label: "Formulare",
     icon: "📝",
@@ -64,6 +65,7 @@ function setTab(tabId) {
     if (typeof Mediplan !== "undefined") Mediplan.reset();
     if (typeof Notfall !== "undefined") Notfall.reset();
     if (typeof Pflege !== "undefined") Pflege.reset();
+    if (typeof Gesundheit !== "undefined") Gesundheit.reset();
   }
   state.tab = tabId;
   render();
@@ -186,6 +188,7 @@ function viewMehr() {
   const items = [
     ["🆘", "Notfall", "notfall"],
     ["⚙️", "Einstellungen", "einstellungen"],
+    ["❤️", "Gesundheitsakte", "gesundheit"],
     ["🤝", "Pflege", "pflege"],
     ["👤", "Profil", null],
     ["👨‍👩‍👧", "Angehörige", null],
@@ -266,6 +269,10 @@ function render() {
   }
   if (state.tab === "mediplan") {
     Mediplan.renderInto(app);
+    return;
+  }
+  if (state.tab === "gesundheit") {
+    Gesundheit.renderInto(app);
     return;
   }
   if (state.tab === "pflege") {
