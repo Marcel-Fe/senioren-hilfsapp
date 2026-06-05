@@ -1,27 +1,27 @@
 /* Service-Worker: macht die App offline-fähig und installierbar.
    CACHE_VERSION bei jeder Asset-Änderung erhöhen (muss zu ?v= in index.html passen). */
 
-const CACHE_VERSION = "0.1.4";
+const CACHE_VERSION = "0.1.5";
 const CACHE_NAME = `alltagsbegleiter-${CACHE_VERSION}`;
 
 const ASSETS = [
   ".",
   "index.html",
-  "css/styles.css?v=0.1.4",
-  "js/db.js?v=0.1.4",
-  "js/ocr.js?v=0.1.4",
-  "js/ui.js?v=0.1.4",
-  "js/ki.js?v=0.1.4",
-  "js/profil.js?v=0.1.4",
-  "js/documents.js?v=0.1.4",
-  "js/formulare.js?v=0.1.4",
-  "js/mediplan.js?v=0.1.4",
-  "js/notfall.js?v=0.1.4",
-  "js/pflege.js?v=0.1.4",
-  "js/gesundheit.js?v=0.1.4",
-  "js/angehoerige.js?v=0.1.4",
-  "js/erinnerungen.js?v=0.1.4",
-  "js/app.js?v=0.1.4",
+  "css/styles.css?v=0.1.5",
+  "js/db.js?v=0.1.5",
+  "js/ocr.js?v=0.1.5",
+  "js/ui.js?v=0.1.5",
+  "js/ki.js?v=0.1.5",
+  "js/profil.js?v=0.1.5",
+  "js/documents.js?v=0.1.5",
+  "js/formulare.js?v=0.1.5",
+  "js/mediplan.js?v=0.1.5",
+  "js/notfall.js?v=0.1.5",
+  "js/pflege.js?v=0.1.5",
+  "js/gesundheit.js?v=0.1.5",
+  "js/angehoerige.js?v=0.1.5",
+  "js/erinnerungen.js?v=0.1.5",
+  "js/app.js?v=0.1.5",
   "manifest.json",
   "icons/icon.svg",
 ];

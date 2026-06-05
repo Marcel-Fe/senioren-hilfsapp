@@ -101,15 +101,22 @@ const KI_EXAMPLES = [
 async function renderDashboard(container) {
   const tasks = await collectTasks();
   const meds = await DB.getAll("medications");
+  const docs = await DB.getAll();
   const statusText = tasks.length
     ? `${tasks.length} offene ${tasks.length === 1 ? "Aufgabe" : "Aufgaben"}`
-    : "Keine offenen Aufgaben";
+    : "Alles erledigt";
 
   // Heute bereits bestätigte Einnahmen (Schlüssel "<medId>|<YYYY-MM-DD>").
   const now = new Date();
   const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const intakes = await DB.getAll("intakes");
   const takenToday = new Set(intakes.filter((r) => r.date === todayKey).map((r) => r.medId));
+  const takenCount = meds.filter((m) => takenToday.has(m.id)).length;
+
+  // Tageszeit-Begrüßung + ausgeschriebenes Datum.
+  const h = now.getHours();
+  const greet = h < 11 ? "Guten Morgen!" : h < 18 ? "Guten Tag!" : "Guten Abend!";
+  const dateStr = now.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
   const heuteMeds = meds.length
     ? `<ul class="list">${meds
@@ -132,34 +139,47 @@ async function renderDashboard(container) {
   const due = typeof Erinnerungen !== "undefined" ? await Erinnerungen.getDue() : [];
   const dueHtml = due.length
     ? `<h3 class="section-title">⏰ Jetzt fällig</h3>
-       <div>${due
+       ${due
          .map(
-           (d) => `<div class="card" style="border-left:4px solid var(--primary)">
-             <strong style="font-size:1.15rem">💊 ${UI.esc(d.med.name)}</strong>
-             <div class="muted" style="margin-top:2px">${UI.esc(d.label)} (${UI.esc(d.uhr)} Uhr)${d.med.dose ? " · " + UI.esc(d.med.dose) : ""}</div>
-             <button class="btn" data-take-due="${UI.esc(d.med.id)}" style="margin-top:10px">✅ Jetzt eingenommen</button>
+           (d) => `<div class="due-card">
+             <div class="due-info">
+               <div class="due-name">💊 ${UI.esc(d.med.name)}</div>
+               <div class="due-time">${UI.esc(d.label)} · ${UI.esc(d.uhr)} Uhr${d.med.dose ? " · " + UI.esc(d.med.dose) : ""}</div>
+             </div>
+             <button class="btn" data-take-due="${UI.esc(d.med.id)}">✅ Eingenommen</button>
            </div>`,
          )
-         .join("")}</div>`
+         .join("")}`
     : "";
 
   container.innerHTML = `
-    <h2 class="view-title">Guten Tag!</h2>
-    <span class="status-pill">${statusText}</span>
+    <div class="hero">
+      <p class="hero-greet">${greet}</p>
+      <p class="hero-date">${UI.esc(dateStr)}</p>
+      <span class="hero-status">${tasks.length ? "📌" : "✨"} ${statusText}</span>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat"><div class="stat-icon" aria-hidden="true">💊</div><div class="stat-num">${takenCount}/${meds.length}</div><div class="stat-label">heute genommen</div></div>
+      <div class="stat"><div class="stat-icon" aria-hidden="true">✅</div><div class="stat-num">${tasks.length}</div><div class="stat-label">offene Aufgaben</div></div>
+      <div class="stat"><div class="stat-icon" aria-hidden="true">📄</div><div class="stat-num">${docs.length}</div><div class="stat-label">Dokumente</div></div>
+    </div>
+
     ${dueHtml}
 
+    <h3 class="section-title">⚡ Schnellzugriff</h3>
     <div class="tile-grid">
       <button class="tile" data-goto="mediplan"><span class="tile-icon" aria-hidden="true">💊</span> Mediplan öffnen</button>
       <button class="tile" data-goto="dokumente"><span class="tile-icon" aria-hidden="true">📷</span> Dokument scannen</button>
-      <button class="tile" data-goto="formulare"><span class="tile-icon" aria-hidden="true">📝</span> Formular starten</button>
-      <button class="tile" data-goto="dokumente"><span class="tile-icon" aria-hidden="true">📄</span> Dokumente anzeigen</button>
+      <button class="tile" data-goto="formulare"><span class="tile-icon" aria-hidden="true">📝</span> Formular ausfüllen</button>
+      <button class="tile" data-goto="erinnerungen"><span class="tile-icon" aria-hidden="true">⏰</span> Erinnerungen</button>
     </div>
 
-    <h3 class="section-title">Heute</h3>
+    <h3 class="section-title">📅 Heute</h3>
     ${heuteMeds}
     <div style="margin-top:12px">${heuteAufgaben}</div>
 
-    <h3 class="section-title">Frag die KI</h3>
+    <h3 class="section-title">💬 Frag die KI</h3>
     <div class="ki-box">
       <textarea id="ki-input" placeholder="Ihre Frage … z. B. „Was bedeutet mein Arztbrief?“"></textarea>
       <div class="ki-examples">
