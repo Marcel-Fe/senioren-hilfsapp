@@ -53,6 +53,7 @@ const MENU = [
   },
   { label: "Pflege", icon: "🤝", tab: "pflege" },
   { label: "Notfall", icon: "🆘", tab: "notfall" },
+  { label: "Angehörige", icon: "👨‍👩‍👧", tab: "angehoerige" },
   { label: "Profil", icon: "👤", tab: "profil" },
   { label: "Einstellungen", icon: "⚙️", tab: "einstellungen" },
 ];
@@ -67,6 +68,7 @@ function setTab(tabId) {
     if (typeof Pflege !== "undefined") Pflege.reset();
     if (typeof Gesundheit !== "undefined") Gesundheit.reset();
     if (typeof Profil !== "undefined") Profil.reset();
+    if (typeof Angehoerige !== "undefined") Angehoerige.reset();
   }
   state.tab = tabId;
   render();
@@ -101,14 +103,20 @@ async function renderDashboard(container) {
     ? `${tasks.length} offene ${tasks.length === 1 ? "Aufgabe" : "Aufgaben"}`
     : "Keine offenen Aufgaben";
 
+  // Heute bereits bestätigte Einnahmen (Schlüssel "<medId>|<YYYY-MM-DD>").
+  const now = new Date();
+  const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const intakes = await DB.getAll("intakes");
+  const takenToday = new Set(intakes.filter((r) => r.date === todayKey).map((r) => r.medId));
+
   const heuteMeds = meds.length
     ? `<ul class="list">${meds
-        .map(
-          (m) =>
-            `<li><span aria-hidden="true">💊</span> <span style="flex:1"><strong>${UI.esc(m.name)}</strong>${
-              m.times && m.times.length ? ` — ${UI.esc(m.times.join(", "))}` : ""
-            }</span></li>`,
-        )
+        .map((m) => {
+          const done = takenToday.has(m.id);
+          return `<li><span aria-hidden="true">${done ? "✅" : "💊"}</span> <span style="flex:1"><strong>${UI.esc(m.name)}</strong>${
+            m.times && m.times.length ? ` — ${UI.esc(m.times.join(", "))}` : ""
+          }${done ? ' <span class="muted">(heute eingenommen)</span>' : ""}</span></li>`;
+        })
         .join("")}</ul>`
     : `<div class="card muted">🔔 Keine Medikamente eingetragen.</div>`;
 
@@ -192,7 +200,7 @@ function viewMehr() {
     ["❤️", "Gesundheitsakte", "gesundheit"],
     ["🤝", "Pflege", "pflege"],
     ["👤", "Profil", "profil"],
-    ["👨‍👩‍👧", "Angehörige", null],
+    ["👨‍👩‍👧", "Angehörige", "angehoerige"],
   ];
   return `
     <h2 class="view-title">Mehr</h2>
@@ -273,6 +281,10 @@ function render() {
   }
   if (state.tab === "profil") {
     Profil.renderInto(app);
+    return;
+  }
+  if (state.tab === "angehoerige") {
+    Angehoerige.renderInto(app);
     return;
   }
   if (state.tab === "einstellungen") {

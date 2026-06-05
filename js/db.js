@@ -7,8 +7,8 @@
 
 const DB = (() => {
   const NAME = "senioren-app";
-  const VERSION = 3;
-  const STORES = ["documents", "medications", "settings"];
+  const VERSION = 4;
+  const STORES = ["documents", "medications", "settings", "intakes"];
   let dbPromise = null;
 
   function open() {

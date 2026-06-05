@@ -83,14 +83,29 @@ const Notfall = (() => {
     });
   }
 
-  function input(id, label, value, placeholder) {
+  function input(id, label, value, placeholder, suggestion) {
+    // Vorschlag aus der Gesundheitsakte: nur zeigen, wenn das Feld leer ist und ein Wert vorliegt.
+    const hint =
+      suggestion && !value
+        ? `<button type="button" class="ui-chip" data-fill="${id}" data-val="${UI.esc(suggestion)}" style="cursor:pointer;margin-top:6px;display:inline-block">＋ Aus Gesundheitsakte: ${UI.esc(suggestion)}</button>`
+        : "";
     return `
       <label for="${id}" style="display:block;margin-top:14px"><strong>${UI.esc(label)}</strong></label>
       <input id="${id}" type="text" value="${UI.esc(value || "")}" placeholder="${UI.esc(placeholder || "")}"
-        style="width:100%;margin-top:6px;padding:12px;font-size:1.1rem;border:1px solid var(--border);border-radius:12px" />`;
+        style="width:100%;margin-top:6px;padding:12px;font-size:1.1rem;border:1px solid var(--border);border-radius:12px" />
+      ${hint}`;
   }
 
-  function renderEdit(container, data) {
+  // Allergien/Diagnosen aus der Gesundheitsakte (settings id "gesundheit") als Komma-Liste.
+  async function suggestionsFromGesundheit() {
+    const g = (await DB.get("gesundheit", "settings")) || {};
+    const join = (arr) =>
+      Array.isArray(arr) ? arr.map((e) => e && e.text).filter(Boolean).join(", ") : "";
+    return { allergien: join(g.allergien), diagnosen: join(g.diagnosen) };
+  }
+
+  async function renderEdit(container, data) {
+    const sug = await suggestionsFromGesundheit();
     container.innerHTML = `
       <button class="btn" id="nf-cancel" style="background:#e8edf6;color:var(--text);margin-bottom:16px">‹ Abbrechen</button>
       <h2 class="view-title">Notfalldaten bearbeiten</h2>
@@ -101,11 +116,19 @@ const Notfall = (() => {
         ${input("nf-ktel", "Notfallkontakt – Telefon", data.kontaktTel, "z. B. 0151 …")}
         ${input("nf-hnam", "Hausarzt – Name", data.hausarztName, "z. B. Dr. Schmidt")}
         ${input("nf-htel", "Hausarzt – Telefon", data.hausarztTel, "z. B. 030 …")}
-        ${input("nf-alle", "Allergien", data.allergien, "z. B. Penicillin")}
-        ${input("nf-diag", "Diagnosen", data.diagnosen, "z. B. Diabetes, Bluthochdruck")}
+        ${input("nf-alle", "Allergien", data.allergien, "z. B. Penicillin", sug.allergien)}
+        ${input("nf-diag", "Diagnosen", data.diagnosen, "z. B. Diabetes, Bluthochdruck", sug.diagnosen)}
       </div>
       <button class="btn" id="nf-save" style="margin-top:8px">Speichern</button>
     `;
+
+    container.querySelectorAll("[data-fill]").forEach((b) =>
+      b.addEventListener("click", () => {
+        const inp = container.querySelector("#" + b.dataset.fill);
+        if (inp) inp.value = b.dataset.val;
+        b.remove();
+      }),
+    );
 
     container.querySelector("#nf-cancel").addEventListener("click", () => {
       view.mode = "show";

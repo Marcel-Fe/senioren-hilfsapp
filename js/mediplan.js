@@ -17,13 +17,51 @@ const Mediplan = (() => {
     return renderList(container);
   }
 
+  // ---------- Einnahme-Historie ----------
+  // Ein Eintrag pro Medikament pro Tag, Schlüssel "<medId>|<YYYY-MM-DD>".
+  const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  const today = () => dayKey(new Date());
+  const intakeId = (medId, date) => `${medId}|${date}`;
+
+  // Liefert {medId -> Set(Datum-Strings)} für schnellen Zugriff.
+  async function loadIntakes() {
+    const all = await DB.getAll("intakes");
+    const map = {};
+    for (const r of all) {
+      (map[r.medId] || (map[r.medId] = new Set())).add(r.date);
+    }
+    return map;
+  }
+
+  function formatDay(dateStr) {
+    const [y, m, d] = dateStr.split("-");
+    return `${d}.${m}.`;
+  }
+
+  // Letzte 7 Tage als Chips: heute zuerst, eingenommene markiert.
+  function historyChips(takenSet) {
+    const chips = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = dayKey(d);
+      const taken = takenSet.has(key);
+      const label = i === 0 ? "Heute" : formatDay(key);
+      chips.push(
+        `<span class="ui-chip" style="${taken ? "background:#d6f5dd;color:#0f5132" : "opacity:.6"}">${taken ? "✓ " : "– "}${label}</span>`,
+      );
+    }
+    return chips.join(" ");
+  }
+
   // ---------- Liste ----------
   async function renderList(container) {
     const meds = await DB.getAll("medications");
     meds.sort((a, b) => a.name.localeCompare(b.name));
+    const intakes = await loadIntakes();
 
     const items = meds.length
-      ? meds.map(medCard).join("")
+      ? meds.map((m) => medCard(m, intakes[m.id] || new Set())).join("")
       : `<div class="card muted">Noch keine Medikamente. Tippen Sie oben auf „Medikament hinzufügen".</div>`;
 
     container.innerHTML = `
@@ -42,25 +80,55 @@ const Mediplan = (() => {
       const root = container.querySelector(`[data-med="${med.id}"]`);
       if (!root) return;
       root.querySelector("[data-explain]").addEventListener("click", () => explain(med, root));
+      root.querySelector("[data-take]").addEventListener("click", () => toggleIntake(med, container));
       root.querySelector("[data-del]").addEventListener("click", async () => {
         if (confirm(`„${med.name}“ wirklich löschen?`)) {
           await DB.remove(med.id, "medications");
+          await removeIntakes(med.id);
           renderInto(container);
         }
       });
     });
   }
 
-  function medCard(med) {
+  // Einnahme heute setzen oder zurücknehmen.
+  async function toggleIntake(med, container) {
+    const date = today();
+    const id = intakeId(med.id, date);
+    const existing = await DB.get(id, "intakes");
+    if (existing) {
+      await DB.remove(id, "intakes");
+    } else {
+      await DB.put({ id, medId: med.id, date, ts: Date.now() }, "intakes");
+    }
+    renderInto(container);
+  }
+
+  // Beim Löschen eines Medikaments auch seine Einnahme-Einträge entfernen.
+  async function removeIntakes(medId) {
+    const all = await DB.getAll("intakes");
+    for (const r of all) {
+      if (r.medId === medId) await DB.remove(r.id, "intakes");
+    }
+  }
+
+  function medCard(med, takenSet) {
     const times = (med.times || []).length
       ? (med.times || []).map((t) => `<span class="ui-chip">${UI.esc(t)}</span>`).join(" ")
       : `<span class="muted">keine Zeit angegeben</span>`;
+    const takenToday = takenSet.has(today());
+    const takeBtn = takenToday
+      ? `<button class="btn" data-take style="background:#d6f5dd;color:#0f5132">✓ Heute eingenommen</button>`
+      : `<button class="btn" data-take>✅ Heute eingenommen</button>`;
     return `
       <div class="card" data-med="${UI.esc(med.id)}">
         <strong style="font-size:1.2rem">💊 ${UI.esc(med.name)}</strong>
         ${med.dose ? `<div style="margin-top:4px">${UI.esc(med.dose)}</div>` : ""}
         <div class="ui-chips" style="margin-top:8px">${times}</div>
         ${med.note ? `<div class="muted" style="margin-top:8px">${UI.esc(med.note)}</div>` : ""}
+        <div class="ui-actions">${takeBtn}</div>
+        <div class="muted" style="margin-top:10px;font-size:.85rem">Letzte 7 Tage</div>
+        <div class="ui-chips" style="margin-top:4px">${historyChips(takenSet)}</div>
         <div class="ui-actions">
           <button class="btn" data-explain style="background:#e8edf6;color:var(--text)">🧠 Wirkstoff erklären</button>
           <button class="btn" data-del style="background:var(--danger)">🗑️ Löschen</button>
