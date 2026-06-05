@@ -18,7 +18,6 @@ const TABS = [
 ];
 
 const app = document.getElementById("app");
-const tabbar = document.getElementById("tabbar");
 const drawer = document.getElementById("drawer");
 const overlay = document.getElementById("overlay");
 const menuBtn = document.getElementById("menu-btn");
@@ -240,20 +239,7 @@ function renderMain() {
   }
 }
 
-function renderTabbar() {
-  return TABS.map(
-    (t) => `
-      <button class="tab" data-tab="${t.id}" ${
-        state.tab === t.id ? 'aria-current="page"' : ""
-      }>
-        <span class="tab-icon" aria-hidden="true">${t.icon}</span>
-        ${t.label}
-      </button>`,
-  ).join("");
-}
-
 function render() {
-  tabbar.innerHTML = renderTabbar();
   // Dashboard und Dokumente werden asynchron aus der DB gerendert.
   if (state.tab === "dashboard") {
     renderDashboard(app);
@@ -292,11 +278,6 @@ function render() {
 
 // ---- Ereignisse (eine zentrale Stelle per Delegation) ----
 document.addEventListener("click", (e) => {
-  const tabBtn = e.target.closest("[data-tab]");
-  if (tabBtn) {
-    setTab(tabBtn.dataset.tab);
-    return;
-  }
   const goto = e.target.closest("[data-goto]");
   if (goto) {
     setTab(goto.dataset.goto);

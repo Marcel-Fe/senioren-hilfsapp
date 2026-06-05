@@ -1,24 +1,24 @@
 /* Service-Worker: macht die App offline-fähig und installierbar.
    CACHE_VERSION bei jeder Asset-Änderung erhöhen (muss zu ?v= in index.html passen). */
 
-const CACHE_VERSION = "0.0.9";
+const CACHE_VERSION = "0.1.0";
 const CACHE_NAME = `alltagsbegleiter-${CACHE_VERSION}`;
 
 const ASSETS = [
   ".",
   "index.html",
-  "css/styles.css?v=0.0.9",
-  "js/db.js?v=0.0.9",
-  "js/ocr.js?v=0.0.9",
-  "js/ui.js?v=0.0.9",
-  "js/ki.js?v=0.0.9",
-  "js/documents.js?v=0.0.9",
-  "js/formulare.js?v=0.0.9",
-  "js/mediplan.js?v=0.0.9",
-  "js/notfall.js?v=0.0.9",
-  "js/pflege.js?v=0.0.9",
-  "js/gesundheit.js?v=0.0.9",
-  "js/app.js?v=0.0.9",
+  "css/styles.css?v=0.1.0",
+  "js/db.js?v=0.1.0",
+  "js/ocr.js?v=0.1.0",
+  "js/ui.js?v=0.1.0",
+  "js/ki.js?v=0.1.0",
+  "js/documents.js?v=0.1.0",
+  "js/formulare.js?v=0.1.0",
+  "js/mediplan.js?v=0.1.0",
+  "js/notfall.js?v=0.1.0",
+  "js/pflege.js?v=0.1.0",
+  "js/gesundheit.js?v=0.1.0",
+  "js/app.js?v=0.1.0",
   "manifest.json",
   "icons/icon.svg",
 ];

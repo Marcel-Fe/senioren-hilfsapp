@@ -30,22 +30,41 @@ const Formulare = (() => {
     return renderSelect(container);
   }
 
+  // Link zum offiziellen Formular (führt zur passenden Online-Stelle).
+  function officialUrl(name) {
+    const q = name.replace(/\s*\(.*?\)\s*/g, " ").trim() + " offizielles Formular online ausfüllen";
+    return "https://www.google.com/search?q=" + encodeURIComponent(q);
+  }
+
   // ---------- Auswahl ----------
   function renderSelect(container) {
     container.innerHTML = `
       <h2 class="view-title">Formulare</h2>
-      <p class="view-subtitle">Amtliche Formulare Schritt für Schritt ausfüllen — das Ergebnis ist immer ein Entwurf.</p>
-      <ul class="list">
-        ${FORM_TYPES.map(
-          (f) => `<li data-form="${UI.esc(f)}" style="cursor:pointer"><span aria-hidden="true">📝</span><span style="flex:1">${UI.esc(f)}</span><span aria-hidden="true">›</span></li>`,
-        ).join("")}
-        <li data-form-custom="1" style="cursor:pointer"><span aria-hidden="true">✏️</span><span style="flex:1">Anderes Formular …</span><span aria-hidden="true">›</span></li>
-      </ul>
+      <p class="view-subtitle">Wählen Sie ein Formular.</p>
+
+      <div class="card" style="background:var(--primary-soft);border-color:#c9dbfb">
+        <strong>„🧠 Mit KI ausfüllen"</strong> führt Sie Schritt für Schritt und erstellt einen Entwurf.<br />
+        <strong>„🔗 Offizielles Formular online"</strong> öffnet das echte Formular im Internet zum direkten Ausfüllen.
+      </div>
+
+      ${FORM_TYPES.map(
+        (f) => `
+        <div class="card">
+          <strong style="font-size:1.15rem">📝 ${UI.esc(f)}</strong>
+          <div class="ui-actions" style="margin-top:12px">
+            <button class="btn" data-form="${UI.esc(f)}">🧠 Mit KI ausfüllen (Entwurf)</button>
+            <a class="btn" style="background:#e8edf6;color:var(--text)" href="${officialUrl(f)}" target="_blank" rel="noopener">🔗 Offizielles Formular online</a>
+          </div>
+        </div>`,
+      ).join("")}
+
+      <button class="btn" id="form-custom" style="margin-top:8px;background:#e8edf6;color:var(--text)">✏️ Anderes Formular …</button>
+      <p class="ui-hinweis" style="margin-top:16px">ℹ️ Das offizielle Formular hängt von Ihrer Pflegekasse oder Ihrem Amt ab. Ein KI-Entwurf ist keine offizielle Prüfung.</p>
     `;
     container.querySelectorAll("[data-form]").forEach((el) =>
       el.addEventListener("click", () => startForm(el.dataset.form, container)),
     );
-    container.querySelector("[data-form-custom]").addEventListener("click", () => {
+    container.querySelector("#form-custom").addEventListener("click", () => {
       const name = prompt("Welches Formular möchten Sie ausfüllen?");
       if (name && name.trim()) startForm(name.trim(), container);
     });
