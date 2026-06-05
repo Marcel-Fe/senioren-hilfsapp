@@ -6,12 +6,54 @@
 "use strict";
 
 const Formulare = (() => {
-  const FORM_TYPES = [
-    "Pflegeantrag (Pflegegrad beantragen)",
-    "Höherstufung des Pflegegrads",
-    "Verhinderungspflege",
-    "Entlastungsbetrag (125 €)",
-    "Wohngeld",
+  // Vollständiger Katalog seniorenrelevanter Formulare, nach Themen gruppiert.
+  // Jedes ist sofort per KI-Assistent ausfüllbar (Entwurf) + Link zum offiziellen Formular.
+  const FORM_GROUPS = [
+    {
+      cat: "Pflege",
+      icon: "🤝",
+      forms: [
+        "Pflegegrad beantragen (Erstantrag)",
+        "Höherstufung des Pflegegrads",
+        "Verhinderungspflege",
+        "Kurzzeitpflege",
+        "Entlastungsbetrag (125 €)",
+        "Pflegehilfsmittel zum Verbrauch (40 €)",
+        "Zuschuss zum Wohnumbau (bis 4.000 €)",
+        "Widerspruch gegen Pflegegrad-Bescheid",
+      ],
+    },
+    {
+      cat: "Krankenkasse",
+      icon: "🩺",
+      forms: [
+        "Krankenfahrten / Krankentransport",
+        "Haushaltshilfe",
+        "Befreiung von Zuzahlungen",
+        "Hilfsmittel (z. B. Rollator, Hörgerät)",
+        "Widerspruch gegen Ablehnung der Krankenkasse",
+      ],
+    },
+    {
+      cat: "Wohnen & Finanzen",
+      icon: "🏠",
+      forms: [
+        "Wohngeld",
+        "Grundsicherung im Alter (Sozialamt)",
+        "Befreiung vom Rundfunkbeitrag",
+        "Schwerbehindertenausweis / GdB (Versorgungsamt)",
+      ],
+    },
+    {
+      cat: "Rente & Vorsorge",
+      icon: "📜",
+      forms: [
+        "Hinterbliebenenrente (Witwen-/Witwerrente)",
+        "Vorsorgevollmacht",
+        "Patientenverfügung",
+        "Betreuungsverfügung",
+      ],
+    },
   ];
 
   const view = { mode: "select", formart: null, messages: [], entwurf: null, hinweis: "", busy: false };
@@ -30,14 +72,29 @@ const Formulare = (() => {
     return renderSelect(container);
   }
 
-  // Link zum offiziellen Formular — nutzt Profil (Kasse/Bundesland) für eine gezielte Suche.
-  function officialUrl(name, profil) {
+  // Link zum offiziellen Formular — nutzt Profil (Kasse/Bundesland) + Kategorie für eine gezielte Suche.
+  function officialUrl(name, profil, cat) {
     const base = name.replace(/\s*\(.*?\)\s*/g, " ").trim();
-    let q = base + " offizielles Formular online ausfüllen";
-    if (/Wohngeld/i.test(name) && profil.bundesland) {
-      q = `Wohngeldantrag online ausfüllen ${profil.bundesland}`;
-    } else if (profil.kasse) {
-      q = `${base} Antrag online ${profil.kasse}`;
+    const bl = profil.bundesland || "";
+    let q;
+    if (cat === "Pflege") {
+      q = `${base} Antrag Formular ${profil.kasse || "Pflegekasse"}`;
+    } else if (cat === "Krankenkasse") {
+      q = `${base} Antrag Formular ${profil.kasse || "Krankenkasse"}`;
+    } else if (/Wohngeld/i.test(name)) {
+      q = `Wohngeldantrag online ausfüllen ${bl}`.trim();
+    } else if (/Grundsicherung/i.test(name)) {
+      q = `Grundsicherung im Alter Antrag Sozialamt ${bl}`.trim();
+    } else if (/Rundfunkbeitrag/i.test(name)) {
+      q = "Rundfunkbeitrag Befreiung Antrag online Formular";
+    } else if (/Schwerbehindert|GdB/i.test(name)) {
+      q = `Schwerbehindertenausweis Antrag Versorgungsamt ${bl}`.trim();
+    } else if (/Hinterbliebenen|Witwen/i.test(name)) {
+      q = "Deutsche Rentenversicherung Hinterbliebenenrente Antrag online";
+    } else if (/Vorsorgevollmacht|Patientenverf|Betreuungsverf/i.test(name)) {
+      q = `${base} Formular Bundesjustizministerium`;
+    } else {
+      q = `${base} offizielles Formular online ausfüllen`;
     }
     return "https://www.google.com/search?q=" + encodeURIComponent(q);
   }
@@ -50,9 +107,26 @@ const Formulare = (() => {
         ? `<div class="card muted">Profil: <strong>${UI.esc(profil.kasse || "")}</strong>${profil.bundesland ? ` · ${UI.esc(profil.bundesland)}` : ""} <button class="ui-chip" id="form-profil" style="cursor:pointer">ändern</button></div>`
         : `<div class="card">💡 Tipp: Hinterlegen Sie Ihre <button class="ui-chip" id="form-profil" style="cursor:pointer">Pflegekasse / Bundesland im Profil</button> — dann führen die Links direkt zur richtigen Stelle.</div>`;
 
+    const groupsHtml = FORM_GROUPS.map(
+      (g) => `
+      <h3 class="section-title">${g.icon} ${UI.esc(g.cat)}</h3>
+      ${g.forms
+        .map(
+          (f) => `
+        <div class="card">
+          <strong style="font-size:1.15rem">📝 ${UI.esc(f)}</strong>
+          <div class="ui-actions" style="margin-top:12px">
+            <button class="btn" data-form="${UI.esc(f)}">🧠 Mit KI ausfüllen (Entwurf)</button>
+            <a class="btn" style="background:#e8edf6;color:var(--text)" href="${officialUrl(f, profil, g.cat)}" target="_blank" rel="noopener">🔗 Offizielles Formular online</a>
+          </div>
+        </div>`,
+        )
+        .join("")}`,
+    ).join("");
+
     container.innerHTML = `
       <h2 class="view-title">Formulare</h2>
-      <p class="view-subtitle">Wählen Sie ein Formular.</p>
+      <p class="view-subtitle">Alle Formulare sind sofort verfügbar. Wählen Sie eines aus.</p>
 
       ${profilBar}
 
@@ -61,18 +135,9 @@ const Formulare = (() => {
         <strong>„🔗 Offizielles Formular online"</strong> öffnet das echte Formular im Internet zum direkten Ausfüllen.
       </div>
 
-      ${FORM_TYPES.map(
-        (f) => `
-        <div class="card">
-          <strong style="font-size:1.15rem">📝 ${UI.esc(f)}</strong>
-          <div class="ui-actions" style="margin-top:12px">
-            <button class="btn" data-form="${UI.esc(f)}">🧠 Mit KI ausfüllen (Entwurf)</button>
-            <a class="btn" style="background:#e8edf6;color:var(--text)" href="${officialUrl(f, profil)}" target="_blank" rel="noopener">🔗 Offizielles Formular online</a>
-          </div>
-        </div>`,
-      ).join("")}
+      ${groupsHtml}
 
-      <button class="btn" id="form-custom" style="margin-top:8px;background:#e8edf6;color:var(--text)">✏️ Anderes Formular …</button>
+      <button class="btn" id="form-custom" style="margin-top:18px;background:#e8edf6;color:var(--text)">✏️ Anderes Formular …</button>
       <p class="ui-hinweis" style="margin-top:16px">ℹ️ Das offizielle Formular hängt von Ihrer Pflegekasse oder Ihrem Amt ab. Ein KI-Entwurf ist keine offizielle Prüfung.</p>
     `;
 

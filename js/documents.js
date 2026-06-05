@@ -200,11 +200,16 @@ const Documents = (() => {
           });
           doc.text = text;
           await DB.put(doc);
-          container.querySelector("#doc-text").textContent = text || "(Kein Text gefunden.)";
-          status.textContent = "✅ Fertig.";
+          if (text) {
+            // Detailansicht neu aufbauen, damit der KI-Erklären-Knopf jetzt erscheint.
+            renderInto(container);
+          } else {
+            container.querySelector("#doc-text").textContent = "(Kein Text gefunden.)";
+            status.textContent = "✅ Fertig.";
+            ocrBtn.disabled = false;
+          }
         } catch (err) {
           status.textContent = "⚠️ " + (err && err.message ? err.message : "Fehler bei der Texterkennung.");
-        } finally {
           ocrBtn.disabled = false;
         }
       });

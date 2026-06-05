@@ -39,12 +39,13 @@ const MENU = [
     ],
   },
   { label: "Mediplan", icon: "💊", tab: "mediplan" },
+  { label: "Erinnerungen", icon: "⏰", tab: "erinnerungen" },
   { label: "Gesundheitsakte", icon: "❤️", tab: "gesundheit" },
   {
     label: "Formulare",
     icon: "📝",
     subForms: [
-      "Pflegeantrag (Pflegegrad beantragen)",
+      "Pflegegrad beantragen (Erstantrag)",
       "Höherstufung des Pflegegrads",
       "Verhinderungspflege",
       "Entlastungsbetrag (125 €)",
@@ -69,6 +70,7 @@ function setTab(tabId) {
     if (typeof Gesundheit !== "undefined") Gesundheit.reset();
     if (typeof Profil !== "undefined") Profil.reset();
     if (typeof Angehoerige !== "undefined") Angehoerige.reset();
+    if (typeof Erinnerungen !== "undefined") Erinnerungen.reset();
   }
   state.tab = tabId;
   render();
@@ -126,9 +128,25 @@ async function renderDashboard(container) {
         .join("")}</ul>`
     : `<div class="card muted">Aktuell nichts zu erledigen.</div>`;
 
+  // Fällige, noch offene Medikamenten-Einnahmen (nur wenn Erinnerungen aktiv sind).
+  const due = typeof Erinnerungen !== "undefined" ? await Erinnerungen.getDue() : [];
+  const dueHtml = due.length
+    ? `<h3 class="section-title">⏰ Jetzt fällig</h3>
+       <div>${due
+         .map(
+           (d) => `<div class="card" style="border-left:4px solid var(--primary)">
+             <strong style="font-size:1.15rem">💊 ${UI.esc(d.med.name)}</strong>
+             <div class="muted" style="margin-top:2px">${UI.esc(d.label)} (${UI.esc(d.uhr)} Uhr)${d.med.dose ? " · " + UI.esc(d.med.dose) : ""}</div>
+             <button class="btn" data-take-due="${UI.esc(d.med.id)}" style="margin-top:10px">✅ Jetzt eingenommen</button>
+           </div>`,
+         )
+         .join("")}</div>`
+    : "";
+
   container.innerHTML = `
     <h2 class="view-title">Guten Tag!</h2>
     <span class="status-pill">${statusText}</span>
+    ${dueHtml}
 
     <div class="tile-grid">
       <button class="tile" data-goto="mediplan"><span class="tile-icon" aria-hidden="true">💊</span> Mediplan öffnen</button>
@@ -151,6 +169,14 @@ async function renderDashboard(container) {
       <div id="ki-answer"></div>
     </div>
   `;
+
+  container.querySelectorAll("[data-take-due]").forEach((el) =>
+    el.addEventListener("click", async () => {
+      const medId = el.dataset.takeDue;
+      await DB.put({ id: `${medId}|${todayKey}`, medId, date: todayKey, ts: Date.now() }, "intakes");
+      renderDashboard(container);
+    }),
+  );
 
   container.querySelectorAll("[data-example]").forEach((el) =>
     el.addEventListener("click", () => {
@@ -196,6 +222,7 @@ function placeholderView(title, subtitle, hint) {
 function viewMehr() {
   const items = [
     ["🆘", "Notfall", "notfall"],
+    ["⏰", "Erinnerungen", "erinnerungen"],
     ["⚙️", "Einstellungen", "einstellungen"],
     ["❤️", "Gesundheitsakte", "gesundheit"],
     ["🤝", "Pflege", "pflege"],
@@ -285,6 +312,10 @@ function render() {
   }
   if (state.tab === "angehoerige") {
     Angehoerige.renderInto(app);
+    return;
+  }
+  if (state.tab === "erinnerungen") {
+    Erinnerungen.renderInto(app);
     return;
   }
   if (state.tab === "einstellungen") {
@@ -392,6 +423,9 @@ drawer.addEventListener("click", (e) => {
 });
 
 render();
+
+// Erinnerungs-Watcher starten (zeigt Benachrichtigungen zur Uhrzeit, solange die App offen ist).
+if (typeof Erinnerungen !== "undefined") Erinnerungen.startWatcher();
 
 // ---- Service-Worker für Offline/Installierbarkeit ----
 if ("serviceWorker" in navigator) {
