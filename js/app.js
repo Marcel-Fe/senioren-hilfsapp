@@ -413,7 +413,8 @@ function openForm(name) {
   if (typeof Formulare.reset === "function") Formulare.reset();
   state.tab = "formulare";
   render();
-  if (typeof Formulare.startForm === "function") Formulare.startForm(name, app);
+  // Direkt die Ausfüll-Maske öffnen (Schnelllink aus dem Seitenmenü).
+  if (typeof Formulare.startFill === "function") Formulare.startFill(name, app);
   window.scrollTo({ top: 0 });
 }
 
