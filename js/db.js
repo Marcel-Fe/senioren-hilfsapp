@@ -1,13 +1,14 @@
 /* Lokale Datenbank im Browser (IndexedDB).
-   Speichert Dokumente samt Datei (Blob) direkt auf dem Gerät — nichts verlässt den Browser.
-   Einfache Promise-Hülle, global als `DB` verfügbar. */
+   Speichert Dokumente und Medikamente direkt auf dem Gerät — nichts verlässt den Browser.
+   Einfache Promise-Hülle, global als `DB`. Methoden nehmen optional den Speichernamen
+   (Standard "documents"); für Medikamente "medications". */
 
 "use strict";
 
 const DB = (() => {
   const NAME = "senioren-app";
-  const VERSION = 1;
-  const STORE = "documents";
+  const VERSION = 2;
+  const STORES = ["documents", "medications"];
   let dbPromise = null;
 
   function open() {
@@ -16,8 +17,10 @@ const DB = (() => {
       const req = indexedDB.open(NAME, VERSION);
       req.onupgradeneeded = () => {
         const db = req.result;
-        if (!db.objectStoreNames.contains(STORE)) {
-          db.createObjectStore(STORE, { keyPath: "id" });
+        for (const name of STORES) {
+          if (!db.objectStoreNames.contains(name)) {
+            db.createObjectStore(name, { keyPath: "id" });
+          }
         }
       };
       req.onsuccess = () => resolve(req.result);
@@ -26,9 +29,9 @@ const DB = (() => {
     return dbPromise;
   }
 
-  async function store(mode) {
+  async function store(mode, name = "documents") {
     const db = await open();
-    return db.transaction(STORE, mode).objectStore(STORE);
+    return db.transaction(name, mode).objectStore(name);
   }
 
   function wrap(req) {
@@ -39,21 +42,21 @@ const DB = (() => {
   }
 
   return {
-    async put(doc) {
-      const s = await store("readwrite");
-      await wrap(s.put(doc));
-      return doc;
+    async put(obj, name = "documents") {
+      const s = await store("readwrite", name);
+      await wrap(s.put(obj));
+      return obj;
     },
-    async getAll() {
-      const s = await store("readonly");
+    async getAll(name = "documents") {
+      const s = await store("readonly", name);
       return wrap(s.getAll());
     },
-    async get(id) {
-      const s = await store("readonly");
+    async get(id, name = "documents") {
+      const s = await store("readonly", name);
       return wrap(s.get(id));
     },
-    async remove(id) {
-      const s = await store("readwrite");
+    async remove(id, name = "documents") {
+      const s = await store("readwrite", name);
       return wrap(s.delete(id));
     },
   };

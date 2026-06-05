@@ -25,6 +25,7 @@ function setTab(tabId) {
   if (tabId !== state.tab) {
     if (typeof Documents !== "undefined") Documents.toList();
     if (typeof Formulare !== "undefined") Formulare.reset();
+    if (typeof Mediplan !== "undefined") Mediplan.reset();
   }
   state.tab = tabId;
   render();
@@ -54,9 +55,21 @@ const KI_EXAMPLES = [
 
 async function renderDashboard(container) {
   const tasks = await collectTasks();
+  const meds = await DB.getAll("medications");
   const statusText = tasks.length
     ? `${tasks.length} offene ${tasks.length === 1 ? "Aufgabe" : "Aufgaben"}`
     : "Keine offenen Aufgaben";
+
+  const heuteMeds = meds.length
+    ? `<ul class="list">${meds
+        .map(
+          (m) =>
+            `<li><span aria-hidden="true">💊</span> <span style="flex:1"><strong>${UI.esc(m.name)}</strong>${
+              m.times && m.times.length ? ` — ${UI.esc(m.times.join(", "))}` : ""
+            }</span></li>`,
+        )
+        .join("")}</ul>`
+    : `<div class="card muted">🔔 Keine Medikamente eingetragen.</div>`;
 
   const heuteAufgaben = tasks.length
     ? `<ul class="list">${tasks
@@ -76,7 +89,7 @@ async function renderDashboard(container) {
     </div>
 
     <h3 class="section-title">Heute</h3>
-    <div class="card muted">🔔 Keine Medikamenten-Erinnerungen eingestellt.</div>
+    ${heuteMeds}
     <div style="margin-top:12px">${heuteAufgaben}</div>
 
     <h3 class="section-title">Frag die KI</h3>
@@ -155,12 +168,6 @@ function viewMehr() {
 
 function renderMain() {
   switch (state.tab) {
-    case "mediplan":
-      return placeholderView(
-        "Mediplan",
-        "Medikamente, Einnahmezeiten und Erinnerungen.",
-        "Der Medikamentenplan wird als Nächstes gebaut. Wirkstoffe erklärt die KI dann neutral — ohne Dosier- oder Therapieempfehlungen.",
-      );
     case "mehr":
       return viewMehr();
     default:
@@ -193,6 +200,10 @@ function render() {
   }
   if (state.tab === "formulare") {
     Formulare.renderInto(app);
+    return;
+  }
+  if (state.tab === "mediplan") {
+    Mediplan.renderInto(app);
     return;
   }
   app.innerHTML = renderMain();
