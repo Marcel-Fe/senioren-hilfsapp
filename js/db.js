@@ -7,8 +7,8 @@
 
 const DB = (() => {
   const NAME = "senioren-app";
-  const VERSION = 2;
-  const STORES = ["documents", "medications"];
+  const VERSION = 3;
+  const STORES = ["documents", "medications", "settings"];
   let dbPromise = null;
 
   function open() {
@@ -58,6 +58,16 @@ const DB = (() => {
     async remove(id, name = "documents") {
       const s = await store("readwrite", name);
       return wrap(s.delete(id));
+    },
+    async clear(name) {
+      const s = await store("readwrite", name);
+      return wrap(s.clear());
+    },
+    async clearAll() {
+      for (const name of STORES) {
+        const s = await store("readwrite", name);
+        await wrap(s.clear());
+      }
     },
   };
 })();

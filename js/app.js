@@ -26,6 +26,7 @@ function setTab(tabId) {
     if (typeof Documents !== "undefined") Documents.toList();
     if (typeof Formulare !== "undefined") Formulare.reset();
     if (typeof Mediplan !== "undefined") Mediplan.reset();
+    if (typeof Notfall !== "undefined") Notfall.reset();
   }
   state.tab = tabId;
   render();
@@ -146,24 +147,48 @@ function placeholderView(title, subtitle, hint) {
 
 function viewMehr() {
   const items = [
-    ["🤝", "Pflege"],
-    ["👤", "Profil"],
-    ["👨‍👩‍👧", "Angehörige"],
-    ["🆘", "Notfall"],
-    ["⚙️", "Einstellungen"],
+    ["🆘", "Notfall", "notfall"],
+    ["⚙️", "Einstellungen", "einstellungen"],
+    ["🤝", "Pflege", null],
+    ["👤", "Profil", null],
+    ["👨‍👩‍👧", "Angehörige", null],
   ];
   return `
     <h2 class="view-title">Mehr</h2>
     <p class="view-subtitle">Weitere Bereiche und Einstellungen.</p>
     <ul class="list">
       ${items
-        .map(
-          ([icon, label]) =>
-            `<li><span aria-hidden="true">${icon}</span> ${label}</li>`,
+        .map(([icon, label, target]) =>
+          target
+            ? `<li data-goto="${target}" style="cursor:pointer"><span aria-hidden="true">${icon}</span><span style="flex:1">${label}</span><span aria-hidden="true">›</span></li>`
+            : `<li><span aria-hidden="true">${icon}</span><span style="flex:1">${label}</span><span class="muted" style="font-size:0.85rem">kommt bald</span></li>`,
         )
         .join("")}
     </ul>
   `;
+}
+
+function renderEinstellungen(container) {
+  container.innerHTML = `
+    <button class="btn" id="set-back" style="background:#e8edf6;color:var(--text);margin-bottom:16px">‹ Zurück</button>
+    <h2 class="view-title">Einstellungen</h2>
+    <div class="card">
+      <strong>Datenschutz</strong>
+      <p style="margin:.4rem 0 0">Alle Ihre Daten (Dokumente, Medikamente, Notfalldaten) liegen ausschließlich auf diesem Gerät.</p>
+    </div>
+    <div class="card">
+      <strong>Alle Daten löschen</strong>
+      <p class="muted" style="margin:.4rem 0 12px">Entfernt unwiderruflich alle Dokumente, Medikamente und Notfalldaten von diesem Gerät.</p>
+      <button class="btn" id="set-delete" style="background:var(--danger)">🗑️ Alle Daten löschen</button>
+      <div id="set-status" class="muted" style="margin-top:8px"></div>
+    </div>
+  `;
+  container.querySelector("#set-back").addEventListener("click", () => setTab("mehr"));
+  container.querySelector("#set-delete").addEventListener("click", async () => {
+    if (!confirm("Wirklich ALLE Daten unwiderruflich löschen?")) return;
+    await DB.clearAll();
+    container.querySelector("#set-status").textContent = "✅ Alle Daten wurden gelöscht.";
+  });
 }
 
 function renderMain() {
@@ -204,6 +229,14 @@ function render() {
   }
   if (state.tab === "mediplan") {
     Mediplan.renderInto(app);
+    return;
+  }
+  if (state.tab === "notfall") {
+    Notfall.renderInto(app);
+    return;
+  }
+  if (state.tab === "einstellungen") {
+    renderEinstellungen(app);
     return;
   }
   app.innerHTML = renderMain();
