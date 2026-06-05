@@ -1,0 +1,6 @@
+name = "senioren-hilfsapp-ki"
+main = "ki.js"
+compatibility_date = "2026-01-01"
+
+# Secret separat setzen (NICHT hier eintragen):
+#   wrangler secret put GEMINI_API_KEY

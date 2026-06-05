@@ -8,12 +8,12 @@ const state = {
   tab: "dashboard",
 };
 
-// Definition der 5 Tabs (untere Navigation).
+// Definition der 5 Tabs (untere Navigation) — Module gemäß Spec.
 const TABS = [
   { id: "dashboard", label: "Start", icon: "🏠" },
   { id: "dokumente", label: "Dokumente", icon: "📄" },
-  { id: "medikamente", label: "Medikamente", icon: "💊" },
-  { id: "pflege", label: "Pflege", icon: "🤝" },
+  { id: "mediplan", label: "Mediplan", icon: "💊" },
+  { id: "formulare", label: "Formulare", icon: "📝" },
   { id: "mehr", label: "Mehr", icon: "☰" },
 ];
 
@@ -30,29 +30,94 @@ function setTab(tabId) {
 
 // ---- Ansichten je Tab ----
 
-function viewDashboard() {
-  return `
+// Sammelt offene Aufgaben aus gespeicherten Dokument-Analysen.
+async function collectTasks() {
+  const docs = await DB.getAll();
+  const tasks = [];
+  for (const doc of docs) {
+    const a = doc.analysis;
+    if (a && Array.isArray(a.aufgaben)) {
+      for (const t of a.aufgaben) tasks.push({ titel: t.titel, doc: doc.title });
+    }
+  }
+  return tasks;
+}
+
+const KI_EXAMPLES = [
+  "Was bedeutet mein Arztbrief?",
+  "Wie fülle ich einen Pflegeantrag aus?",
+  "Wofür ist mein Medikament?",
+];
+
+async function renderDashboard(container) {
+  const tasks = await collectTasks();
+  const statusText = tasks.length
+    ? `${tasks.length} offene ${tasks.length === 1 ? "Aufgabe" : "Aufgaben"}`
+    : "Keine offenen Aufgaben";
+
+  const heuteAufgaben = tasks.length
+    ? `<ul class="list">${tasks
+        .map((t) => `<li><span aria-hidden="true">✅</span> ${UI.esc(t.titel)}</li>`)
+        .join("")}</ul>`
+    : `<div class="card muted">Aktuell nichts zu erledigen.</div>`;
+
+  container.innerHTML = `
     <h2 class="view-title">Guten Tag!</h2>
-    <p class="view-subtitle">Was möchten Sie heute tun?</p>
+    <span class="status-pill">${statusText}</span>
+
     <div class="tile-grid">
-      <button class="tile" data-goto="medikamente">
-        <span class="tile-icon" aria-hidden="true">💊</span>
-        Heutige Medikamente
-      </button>
-      <button class="tile" data-goto="dokumente">
-        <span class="tile-icon" aria-hidden="true">📄</span>
-        Dokument hochladen
-      </button>
-      <button class="tile" data-goto="dashboard">
-        <span class="tile-icon" aria-hidden="true">🔔</span>
-        Offene Aufgaben
-      </button>
-      <button class="tile" data-goto="dashboard">
-        <span class="tile-icon" aria-hidden="true">💬</span>
-        KI fragen
-      </button>
+      <button class="tile" data-goto="mediplan"><span class="tile-icon" aria-hidden="true">💊</span> Mediplan öffnen</button>
+      <button class="tile" data-goto="dokumente"><span class="tile-icon" aria-hidden="true">📷</span> Dokument scannen</button>
+      <button class="tile" data-goto="formulare"><span class="tile-icon" aria-hidden="true">📝</span> Formular starten</button>
+      <button class="tile" data-goto="dokumente"><span class="tile-icon" aria-hidden="true">📄</span> Dokumente anzeigen</button>
+    </div>
+
+    <h3 class="section-title">Heute</h3>
+    <div class="card muted">🔔 Keine Medikamenten-Erinnerungen eingestellt.</div>
+    <div style="margin-top:12px">${heuteAufgaben}</div>
+
+    <h3 class="section-title">Frag die KI</h3>
+    <div class="ki-box">
+      <textarea id="ki-input" placeholder="Ihre Frage … z. B. „Was bedeutet mein Arztbrief?“"></textarea>
+      <div class="ki-examples">
+        ${KI_EXAMPLES.map((q) => `<button class="ki-example" data-example="${UI.esc(q)}">${UI.esc(q)}</button>`).join("")}
+      </div>
+      <button class="btn" id="ki-ask">💬 Frage stellen</button>
+      <div id="ki-answer"></div>
     </div>
   `;
+
+  container.querySelectorAll("[data-example]").forEach((el) =>
+    el.addEventListener("click", () => {
+      container.querySelector("#ki-input").value = el.dataset.example;
+    }),
+  );
+
+  const askBtn = container.querySelector("#ki-ask");
+  askBtn.addEventListener("click", async () => {
+    const input = container.querySelector("#ki-input");
+    const answer = container.querySelector("#ki-answer");
+    const frage = input.value.trim();
+    if (!frage) return;
+    askBtn.disabled = true;
+    answer.innerHTML = `<div class="card muted">Die KI denkt nach …</div>`;
+    try {
+      const data = await KI.chat([{ role: "user", content: frage }]);
+      answer.innerHTML = UI.resultHtml(data);
+      if (data.modul && data.modul !== "keines" && TABS.some((t) => t.id === data.modul)) {
+        const go = document.createElement("button");
+        go.className = "btn";
+        go.style.marginTop = "12px";
+        go.textContent = "Dorthin wechseln";
+        go.addEventListener("click", () => setTab(data.modul));
+        answer.querySelector(".ui-result").appendChild(go);
+      }
+    } catch (err) {
+      answer.innerHTML = `<div class="card">⚠️ ${UI.esc(err.message || "Fehler bei der KI-Anfrage.")}</div>`;
+    } finally {
+      askBtn.disabled = false;
+    }
+  });
 }
 
 function placeholderView(title, subtitle, hint) {
@@ -65,11 +130,11 @@ function placeholderView(title, subtitle, hint) {
 
 function viewMehr() {
   const items = [
+    ["🤝", "Pflege"],
     ["👤", "Profil"],
     ["👨‍👩‍👧", "Angehörige"],
     ["🆘", "Notfall"],
     ["⚙️", "Einstellungen"],
-    ["🚪", "Abmelden"],
   ];
   return `
     <h2 class="view-title">Mehr</h2>
@@ -87,19 +152,17 @@ function viewMehr() {
 
 function renderMain() {
   switch (state.tab) {
-    case "dashboard":
-      return viewDashboard();
-    case "medikamente":
+    case "mediplan":
       return placeholderView(
-        "Medikamente",
-        "Einnahmeplan und Erinnerungen.",
-        "Hier entsteht Ihr Medikamentenplan.",
+        "Mediplan",
+        "Medikamente, Einnahmezeiten und Erinnerungen.",
+        "Der Medikamentenplan wird als Nächstes gebaut. Wirkstoffe erklärt die KI dann neutral — ohne Dosier- oder Therapieempfehlungen.",
       );
-    case "pflege":
+    case "formulare":
       return placeholderView(
-        "Pflege",
-        "Pflegegrad, Leistungen und Unterlagen.",
-        "Dieser Bereich wird später gebaut.",
+        "Formulare",
+        "Amtliche Formulare Schritt für Schritt als Entwurf ausfüllen.",
+        "Der Formular-Modus folgt. Die KI hilft beim Ausfüllen — das Ergebnis ist immer ein Entwurf, keine offizielle Prüfung.",
       );
     case "mehr":
       return viewMehr();
@@ -122,7 +185,11 @@ function renderTabbar() {
 
 function render() {
   tabbar.innerHTML = renderTabbar();
-  // Der Dokumente-Tab wird vom eigenen Modul gerendert (lädt asynchron aus der DB).
+  // Dashboard und Dokumente werden asynchron aus der DB gerendert.
+  if (state.tab === "dashboard") {
+    renderDashboard(app);
+    return;
+  }
   if (state.tab === "dokumente") {
     Documents.renderInto(app);
     return;

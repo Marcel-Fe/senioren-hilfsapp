@@ -130,6 +130,17 @@ const Documents = (() => {
         }
       </div>
 
+      <div class="card">
+        <strong>KI-Erklärung</strong>
+        <div id="doc-explain">${doc.analysis ? UI.resultHtml(doc.analysis) : ""}</div>
+        ${
+          doc.text
+            ? `<button class="btn" id="doc-explain-btn" style="margin-top:12px">🧠 In einfacher Sprache erklären</button>`
+            : `<p class="muted" style="margin-top:8px">Bitte zuerst „Text erkennen“, dann kann die KI das Dokument erklären.</p>`
+        }
+        <div id="doc-explain-status" class="muted" style="margin-top:8px"></div>
+      </div>
+
       <button class="btn" id="doc-delete" style="background:var(--danger);margin-top:8px">🗑️ Löschen</button>
     `;
 
@@ -172,12 +183,47 @@ const Documents = (() => {
         }
       });
     }
+
+    const explainBtn = container.querySelector("#doc-explain-btn");
+    if (explainBtn) {
+      explainBtn.addEventListener("click", async () => {
+        const status = container.querySelector("#doc-explain-status");
+        const out = container.querySelector("#doc-explain");
+        explainBtn.disabled = true;
+        status.textContent = "Die KI erklärt das Dokument …";
+        try {
+          const data = await KI.analyzeDocument(doc.text);
+          out.innerHTML = UI.resultHtml(data, [
+            { label: "💾 Erklärung in Akte speichern", attr: 'id="doc-save-analysis"' },
+          ]);
+          status.textContent = "";
+          const saveBtn = container.querySelector("#doc-save-analysis");
+          if (saveBtn) {
+            saveBtn.addEventListener("click", async () => {
+              doc.analysis = data;
+              await DB.put(doc);
+              saveBtn.textContent = "✅ Gespeichert";
+              saveBtn.disabled = true;
+            });
+          }
+        } catch (err) {
+          status.textContent =
+            "⚠️ " + (err && err.message ? err.message : "Fehler bei der KI-Erklärung.");
+        } finally {
+          explainBtn.disabled = false;
+        }
+      });
+    }
   }
 
   // ---------- Upload ----------
+  // Spec: nichts automatisch speichern — vor jeder Ablage ausdrücklich fragen.
   async function handleFiles(fileList, container) {
     const files = Array.from(fileList || []);
+    let saved = 0;
     for (const file of files) {
+      const ok = confirm(`„${file.name || "Dokument"}“ in Ihrer Akte speichern?`);
+      if (!ok) continue;
       await DB.put({
         id: crypto.randomUUID(),
         title: file.name || "Dokument",
@@ -187,8 +233,9 @@ const Documents = (() => {
         text: "",
         createdAt: Date.now(),
       });
+      saved++;
     }
-    if (files.length) renderInto(container);
+    if (saved) renderInto(container);
   }
 
   return { renderInto, toList };
