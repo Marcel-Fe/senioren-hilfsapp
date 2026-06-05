@@ -21,8 +21,11 @@ const app = document.getElementById("app");
 const tabbar = document.getElementById("tabbar");
 
 function setTab(tabId) {
-  // Beim Tab-Wechsel die Dokumente-Ansicht auf die Liste zurücksetzen.
-  if (tabId !== state.tab && typeof Documents !== "undefined") Documents.toList();
+  // Beim Tab-Wechsel die Unteransichten zurücksetzen.
+  if (tabId !== state.tab) {
+    if (typeof Documents !== "undefined") Documents.toList();
+    if (typeof Formulare !== "undefined") Formulare.reset();
+  }
   state.tab = tabId;
   render();
   window.scrollTo({ top: 0 });
@@ -158,12 +161,6 @@ function renderMain() {
         "Medikamente, Einnahmezeiten und Erinnerungen.",
         "Der Medikamentenplan wird als Nächstes gebaut. Wirkstoffe erklärt die KI dann neutral — ohne Dosier- oder Therapieempfehlungen.",
       );
-    case "formulare":
-      return placeholderView(
-        "Formulare",
-        "Amtliche Formulare Schritt für Schritt als Entwurf ausfüllen.",
-        "Der Formular-Modus folgt. Die KI hilft beim Ausfüllen — das Ergebnis ist immer ein Entwurf, keine offizielle Prüfung.",
-      );
     case "mehr":
       return viewMehr();
     default:
@@ -192,6 +189,10 @@ function render() {
   }
   if (state.tab === "dokumente") {
     Documents.renderInto(app);
+    return;
+  }
+  if (state.tab === "formulare") {
+    Formulare.renderInto(app);
     return;
   }
   app.innerHTML = renderMain();

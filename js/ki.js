@@ -29,5 +29,7 @@ const KI = (() => {
     analyzeDocument: (text) => call({ mode: "document", text }),
     // messages: [{role:"user"|"assistant", content}] → strukturierte Antwort.
     chat: (messages) => call({ mode: "chat", messages }),
+    // formart: Name des Formulars; messages: Gesprächsverlauf → {nachricht, entwurf?, fertig, hinweis}.
+    formular: (formart, messages) => call({ mode: "formular", formart, messages }),
   };
 })();

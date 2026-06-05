@@ -60,6 +60,17 @@ const DOCUMENT_SCHEMA = {
   required: ["ueberschrift", "zusammenfassung", "klassifikation", "details", "hinweis"],
 };
 
+const FORMULAR_SCHEMA = {
+  type: "object",
+  properties: {
+    nachricht: { type: "string" },
+    entwurf: { type: "string" },
+    fertig: { type: "boolean" },
+    hinweis: { type: "string" },
+  },
+  required: ["nachricht", "hinweis"],
+};
+
 const CHAT_SCHEMA = {
   type: "object",
   properties: {
@@ -97,11 +108,12 @@ export default {
       return json({ error: "Ungültiges JSON." }, 400);
     }
 
-    const mode = body.mode === "chat" ? "chat" : "document";
+    const mode = ["chat", "formular"].includes(body.mode) ? body.mode : "document";
     let contents;
     let schema;
+    let systemText = SYSTEM_PROMPT;
 
-    if (mode === "chat") {
+    if (mode === "chat" || mode === "formular") {
       const messages = Array.isArray(body.messages) ? body.messages : [];
       if (!messages.length) return json({ error: "Keine Nachrichten." }, 400);
       contents = messages
@@ -110,7 +122,21 @@ export default {
           role: m.role === "assistant" ? "model" : "user",
           parts: [{ text: String(m.content || "") }],
         }));
-      schema = CHAT_SCHEMA;
+
+      if (mode === "formular") {
+        const formart = String(body.formart || "amtliches Formular").slice(0, 120);
+        schema = FORMULAR_SCHEMA;
+        systemText =
+          SYSTEM_PROMPT +
+          `\n\nDu hilfst jetzt Schritt für Schritt beim Ausfüllen von: "${formart}". ` +
+          `Stelle immer nur EINE Frage auf einmal und erkläre das jeweilige Feld einfach; gib bei Bedarf eine Beispielantwort. ` +
+          `Das Feld "nachricht" ist deine nächste Frage oder Erklärung an die Person. ` +
+          `Wenn genügend Informationen vorliegen, schreibe in das Feld "entwurf" einen vollständigen, gut lesbaren ENTWURF und setze "fertig" auf true. ` +
+          `Jeder Entwurf MUSS mit dem Satz enden: "Dies ist ein Entwurf und keine offizielle Prüfung." ` +
+          `Mache keine rechtlich verbindlichen Aussagen und versprich keine Bewilligung.`;
+      } else {
+        schema = CHAT_SCHEMA;
+      }
     } else {
       const text = String(body.text || "").trim();
       if (!text) return json({ error: "Kein Text." }, 400);
@@ -121,7 +147,7 @@ export default {
     }
 
     const payload = {
-      systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      systemInstruction: { parts: [{ text: systemText }] },
       contents,
       generationConfig: {
         temperature: 0.4,
