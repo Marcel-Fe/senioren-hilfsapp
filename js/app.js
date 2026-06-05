@@ -51,6 +51,7 @@ const MENU = [
       "Wohngeld",
     ],
   },
+  { label: "Pflege", icon: "🤝", tab: "pflege" },
   { label: "Notfall", icon: "🆘", tab: "notfall" },
   { label: "Einstellungen", icon: "⚙️", tab: "einstellungen" },
 ];
@@ -62,6 +63,7 @@ function setTab(tabId) {
     if (typeof Formulare !== "undefined") Formulare.reset();
     if (typeof Mediplan !== "undefined") Mediplan.reset();
     if (typeof Notfall !== "undefined") Notfall.reset();
+    if (typeof Pflege !== "undefined") Pflege.reset();
   }
   state.tab = tabId;
   render();
@@ -184,7 +186,7 @@ function viewMehr() {
   const items = [
     ["🆘", "Notfall", "notfall"],
     ["⚙️", "Einstellungen", "einstellungen"],
-    ["🤝", "Pflege", null],
+    ["🤝", "Pflege", "pflege"],
     ["👤", "Profil", null],
     ["👨‍👩‍👧", "Angehörige", null],
   ];
@@ -264,6 +266,10 @@ function render() {
   }
   if (state.tab === "mediplan") {
     Mediplan.renderInto(app);
+    return;
+  }
+  if (state.tab === "pflege") {
+    Pflege.renderInto(app);
     return;
   }
   if (state.tab === "notfall") {
