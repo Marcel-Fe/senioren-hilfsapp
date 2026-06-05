@@ -30,17 +30,31 @@ const Formulare = (() => {
     return renderSelect(container);
   }
 
-  // Link zum offiziellen Formular (führt zur passenden Online-Stelle).
-  function officialUrl(name) {
-    const q = name.replace(/\s*\(.*?\)\s*/g, " ").trim() + " offizielles Formular online ausfüllen";
+  // Link zum offiziellen Formular — nutzt Profil (Kasse/Bundesland) für eine gezielte Suche.
+  function officialUrl(name, profil) {
+    const base = name.replace(/\s*\(.*?\)\s*/g, " ").trim();
+    let q = base + " offizielles Formular online ausfüllen";
+    if (/Wohngeld/i.test(name) && profil.bundesland) {
+      q = `Wohngeldantrag online ausfüllen ${profil.bundesland}`;
+    } else if (profil.kasse) {
+      q = `${base} Antrag online ${profil.kasse}`;
+    }
     return "https://www.google.com/search?q=" + encodeURIComponent(q);
   }
 
   // ---------- Auswahl ----------
-  function renderSelect(container) {
+  async function renderSelect(container) {
+    const profil = typeof Profil !== "undefined" ? await Profil.get() : {};
+    const profilBar =
+      profil.kasse || profil.bundesland
+        ? `<div class="card muted">Profil: <strong>${UI.esc(profil.kasse || "")}</strong>${profil.bundesland ? ` · ${UI.esc(profil.bundesland)}` : ""} <button class="ui-chip" id="form-profil" style="cursor:pointer">ändern</button></div>`
+        : `<div class="card">💡 Tipp: Hinterlegen Sie Ihre <button class="ui-chip" id="form-profil" style="cursor:pointer">Pflegekasse / Bundesland im Profil</button> — dann führen die Links direkt zur richtigen Stelle.</div>`;
+
     container.innerHTML = `
       <h2 class="view-title">Formulare</h2>
       <p class="view-subtitle">Wählen Sie ein Formular.</p>
+
+      ${profilBar}
 
       <div class="card" style="background:var(--primary-soft);border-color:#c9dbfb">
         <strong>„🧠 Mit KI ausfüllen"</strong> führt Sie Schritt für Schritt und erstellt einen Entwurf.<br />
@@ -53,7 +67,7 @@ const Formulare = (() => {
           <strong style="font-size:1.15rem">📝 ${UI.esc(f)}</strong>
           <div class="ui-actions" style="margin-top:12px">
             <button class="btn" data-form="${UI.esc(f)}">🧠 Mit KI ausfüllen (Entwurf)</button>
-            <a class="btn" style="background:#e8edf6;color:var(--text)" href="${officialUrl(f)}" target="_blank" rel="noopener">🔗 Offizielles Formular online</a>
+            <a class="btn" style="background:#e8edf6;color:var(--text)" href="${officialUrl(f, profil)}" target="_blank" rel="noopener">🔗 Offizielles Formular online</a>
           </div>
         </div>`,
       ).join("")}
@@ -61,6 +75,9 @@ const Formulare = (() => {
       <button class="btn" id="form-custom" style="margin-top:8px;background:#e8edf6;color:var(--text)">✏️ Anderes Formular …</button>
       <p class="ui-hinweis" style="margin-top:16px">ℹ️ Das offizielle Formular hängt von Ihrer Pflegekasse oder Ihrem Amt ab. Ein KI-Entwurf ist keine offizielle Prüfung.</p>
     `;
+
+    const prBtn = container.querySelector("#form-profil");
+    if (prBtn) prBtn.addEventListener("click", () => setTab("profil"));
     container.querySelectorAll("[data-form]").forEach((el) =>
       el.addEventListener("click", () => startForm(el.dataset.form, container)),
     );

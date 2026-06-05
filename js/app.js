@@ -53,6 +53,7 @@ const MENU = [
   },
   { label: "Pflege", icon: "🤝", tab: "pflege" },
   { label: "Notfall", icon: "🆘", tab: "notfall" },
+  { label: "Profil", icon: "👤", tab: "profil" },
   { label: "Einstellungen", icon: "⚙️", tab: "einstellungen" },
 ];
 
@@ -65,6 +66,7 @@ function setTab(tabId) {
     if (typeof Notfall !== "undefined") Notfall.reset();
     if (typeof Pflege !== "undefined") Pflege.reset();
     if (typeof Gesundheit !== "undefined") Gesundheit.reset();
+    if (typeof Profil !== "undefined") Profil.reset();
   }
   state.tab = tabId;
   render();
@@ -189,7 +191,7 @@ function viewMehr() {
     ["⚙️", "Einstellungen", "einstellungen"],
     ["❤️", "Gesundheitsakte", "gesundheit"],
     ["🤝", "Pflege", "pflege"],
-    ["👤", "Profil", null],
+    ["👤", "Profil", "profil"],
     ["👨‍👩‍👧", "Angehörige", null],
   ];
   return `
@@ -267,6 +269,10 @@ function render() {
   }
   if (state.tab === "notfall") {
     Notfall.renderInto(app);
+    return;
+  }
+  if (state.tab === "profil") {
+    Profil.renderInto(app);
     return;
   }
   if (state.tab === "einstellungen") {
