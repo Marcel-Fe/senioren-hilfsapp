@@ -8,26 +8,30 @@
     <link rel="manifest" href="manifest.json" />
     <link rel="apple-touch-icon" href="icons/icon.svg" />
     <!-- ?v= ist die Cache-Version. Bei Änderungen hochzählen, damit der Service-Worker neu lädt. -->
-    <link rel="stylesheet" href="css/styles.css?v=0.0.6" />
+    <link rel="stylesheet" href="css/styles.css?v=0.0.7" />
   </head>
   <body>
     <header class="app-header">
+      <button id="menu-btn" class="menu-btn" aria-label="Menü öffnen">☰</button>
       <span class="app-logo" aria-hidden="true">🧓</span>
-      <h1 class="app-title">Senioren-Alltagsbegleiter</h1>
+      <h1 class="app-title">Alltagsbegleiter</h1>
     </header>
+
+    <div id="overlay" class="overlay" hidden></div>
+    <aside id="drawer" class="drawer" aria-label="Navigation"><!-- Menü von app.js --></aside>
 
     <main id="app" class="app-main" aria-live="polite"><!-- Inhalt wird von app.js gerendert --></main>
 
     <nav id="tabbar" class="tabbar" aria-label="Hauptmenü"><!-- Tabs von app.js --></nav>
 
-    <script src="js/db.js?v=0.0.6"></script>
-    <script src="js/ocr.js?v=0.0.6"></script>
-    <script src="js/ui.js?v=0.0.6"></script>
-    <script src="js/ki.js?v=0.0.6"></script>
-    <script src="js/documents.js?v=0.0.6"></script>
-    <script src="js/formulare.js?v=0.0.6"></script>
-    <script src="js/mediplan.js?v=0.0.6"></script>
-    <script src="js/notfall.js?v=0.0.6"></script>
-    <script src="js/app.js?v=0.0.6"></script>
+    <script src="js/db.js?v=0.0.7"></script>
+    <script src="js/ocr.js?v=0.0.7"></script>
+    <script src="js/ui.js?v=0.0.7"></script>
+    <script src="js/ki.js?v=0.0.7"></script>
+    <script src="js/documents.js?v=0.0.7"></script>
+    <script src="js/formulare.js?v=0.0.7"></script>
+    <script src="js/mediplan.js?v=0.0.7"></script>
+    <script src="js/notfall.js?v=0.0.7"></script>
+    <script src="js/app.js?v=0.0.7"></script>
   </body>
 </html>

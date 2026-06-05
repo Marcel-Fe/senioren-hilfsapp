@@ -145,5 +145,5 @@ const Formulare = (() => {
     }
   }
 
-  return { renderInto, reset };
+  return { renderInto, reset, startForm };
 })();

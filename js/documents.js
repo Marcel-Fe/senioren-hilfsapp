@@ -16,6 +16,7 @@ const Documents = (() => {
 
   // Ansicht innerhalb des Tabs: Liste oder ein einzelnes Dokument.
   const view = { mode: "list", currentId: null };
+  let filterCategory = null; // optionaler Kategorie-Filter (aus dem Seitenmenü)
 
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"]/g, (c) =>
@@ -28,6 +29,14 @@ const Documents = (() => {
   }
 
   function toList() {
+    view.mode = "list";
+    view.currentId = null;
+    filterCategory = null;
+  }
+
+  // Vom Seitenmenü: Liste auf eine Kategorie filtern (leer/null = alle).
+  function setCategory(cat) {
+    filterCategory = cat || null;
     view.mode = "list";
     view.currentId = null;
   }
@@ -47,6 +56,11 @@ const Documents = (() => {
       <p class="view-subtitle">Briefe, Rezepte und Bescheide sicher ablegen.</p>
       <button class="btn" id="doc-upload-btn">📷 Dokument hochladen</button>
       <input type="file" id="doc-file-input" accept="image/*,application/pdf" multiple hidden />
+      ${
+        filterCategory
+          ? `<div class="ui-chips" style="margin-top:14px"><span class="ui-chip">Kategorie: ${esc(filterCategory)}</span><button class="ui-chip" id="doc-show-all" style="cursor:pointer">✕ Alle anzeigen</button></div>`
+          : ""
+      }
       <div id="doc-list" style="margin-top:18px">Wird geladen …</div>
     `;
 
@@ -54,12 +68,24 @@ const Documents = (() => {
     container.querySelector("#doc-upload-btn").addEventListener("click", () => input.click());
     input.addEventListener("change", () => handleFiles(input.files, container));
 
+    const showAll = container.querySelector("#doc-show-all");
+    if (showAll)
+      showAll.addEventListener("click", () => {
+        filterCategory = null;
+        renderInto(container);
+      });
+
     const listEl = container.querySelector("#doc-list");
-    const docs = await DB.getAll();
+    let docs = await DB.getAll();
+    if (filterCategory) docs = docs.filter((d) => d.category === filterCategory);
     docs.sort((a, b) => b.createdAt - a.createdAt);
 
     if (!docs.length) {
-      listEl.innerHTML = `<div class="card muted">Noch keine Dokumente. Tippen Sie oben auf „Dokument hochladen".</div>`;
+      listEl.innerHTML = `<div class="card muted">${
+        filterCategory
+          ? `Keine Dokumente in „${esc(filterCategory)}“.`
+          : "Noch keine Dokumente. Tippen Sie oben auf „Dokument hochladen“."
+      }</div>`;
       return;
     }
 
@@ -238,5 +264,5 @@ const Documents = (() => {
     if (saved) renderInto(container);
   }
 
-  return { renderInto, toList };
+  return { renderInto, toList, setCategory };
 })();

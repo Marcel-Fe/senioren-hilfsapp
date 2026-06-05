@@ -19,6 +19,41 @@ const TABS = [
 
 const app = document.getElementById("app");
 const tabbar = document.getElementById("tabbar");
+const drawer = document.getElementById("drawer");
+const overlay = document.getElementById("overlay");
+const menuBtn = document.getElementById("menu-btn");
+
+// Seitenmenü mit Kategorien und Unterkategorien.
+const MENU = [
+  { label: "Start", icon: "🏠", tab: "dashboard" },
+  {
+    label: "Dokumente",
+    icon: "📄",
+    sub: [
+      { label: "Alle Dokumente", cat: "" },
+      { label: "Gesundheit", cat: "Gesundheit" },
+      { label: "Pflege", cat: "Pflege" },
+      { label: "Versicherungen", cat: "Versicherungen" },
+      { label: "Wohnen", cat: "Wohnen" },
+      { label: "Finanzen", cat: "Finanzen" },
+      { label: "Behörden", cat: "Behörden" },
+    ],
+  },
+  { label: "Mediplan", icon: "💊", tab: "mediplan" },
+  {
+    label: "Formulare",
+    icon: "📝",
+    subForms: [
+      "Pflegeantrag (Pflegegrad beantragen)",
+      "Höherstufung des Pflegegrads",
+      "Verhinderungspflege",
+      "Entlastungsbetrag (125 €)",
+      "Wohngeld",
+    ],
+  },
+  { label: "Notfall", icon: "🆘", tab: "notfall" },
+  { label: "Einstellungen", icon: "⚙️", tab: "einstellungen" },
+];
 
 function setTab(tabId) {
   // Beim Tab-Wechsel die Unteransichten zurücksetzen.
@@ -253,6 +288,95 @@ document.addEventListener("click", (e) => {
   if (goto) {
     setTab(goto.dataset.goto);
   }
+});
+
+// ---- Seitenmenü (Drawer) ----
+function buildDrawer() {
+  const item = (m) => {
+    const active = state.tab === m.tab ? "active" : "";
+    if (m.sub || m.subForms) {
+      const subs = (m.sub || [])
+        .map((s) => `<button class="drawer-subitem" data-nav-cat="${UI.esc(s.cat)}">📁 ${UI.esc(s.label)}</button>`)
+        .concat(
+          (m.subForms || []).map(
+            (f) => `<button class="drawer-subitem" data-nav-form="${UI.esc(f)}">📝 ${UI.esc(f)}</button>`,
+          ),
+        )
+        .join("");
+      return `<div class="drawer-group">
+        <button class="drawer-item"><span class="di-icon">${m.icon}</span><span style="flex:1">${m.label}</span><span class="di-caret">›</span></button>
+        <div class="drawer-sub">${subs}</div>
+      </div>`;
+    }
+    return `<button class="drawer-item ${active}" data-nav-tab="${m.tab}"><span class="di-icon">${m.icon}</span><span style="flex:1">${m.label}</span></button>`;
+  };
+
+  drawer.innerHTML = `
+    <div class="drawer-head">
+      <div class="dh-title">🧓 Alltagsbegleiter</div>
+      <div class="dh-sub">Ihre digitale Lebensakte</div>
+    </div>
+    <nav>${MENU.map(item).join("")}</nav>
+  `;
+}
+
+function openDrawer() {
+  buildDrawer();
+  overlay.hidden = false;
+  document.body.classList.add("no-scroll");
+  requestAnimationFrame(() => {
+    overlay.classList.add("show");
+    drawer.classList.add("open");
+  });
+}
+
+function closeDrawer() {
+  overlay.classList.remove("show");
+  drawer.classList.remove("open");
+  document.body.classList.remove("no-scroll");
+  setTimeout(() => {
+    overlay.hidden = true;
+  }, 220);
+}
+
+function openDocCategory(cat) {
+  if (typeof Documents.setCategory === "function") Documents.setCategory(cat);
+  state.tab = "dokumente";
+  render();
+  window.scrollTo({ top: 0 });
+}
+
+function openForm(name) {
+  if (typeof Formulare.reset === "function") Formulare.reset();
+  state.tab = "formulare";
+  render();
+  if (typeof Formulare.startForm === "function") Formulare.startForm(name, app);
+  window.scrollTo({ top: 0 });
+}
+
+menuBtn.addEventListener("click", openDrawer);
+overlay.addEventListener("click", closeDrawer);
+drawer.addEventListener("click", (e) => {
+  const cat = e.target.closest("[data-nav-cat]");
+  if (cat) {
+    closeDrawer();
+    openDocCategory(cat.dataset.navCat || null);
+    return;
+  }
+  const form = e.target.closest("[data-nav-form]");
+  if (form) {
+    closeDrawer();
+    openForm(form.dataset.navForm);
+    return;
+  }
+  const tab = e.target.closest("[data-nav-tab]");
+  if (tab) {
+    closeDrawer();
+    setTab(tab.dataset.navTab);
+    return;
+  }
+  const groupItem = e.target.closest(".drawer-group > .drawer-item");
+  if (groupItem) groupItem.parentElement.classList.toggle("open");
 });
 
 render();
