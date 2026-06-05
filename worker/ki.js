@@ -133,13 +133,18 @@ export default {
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${env.GEMINI_API_KEY}`;
 
+    // Gemini ist zeitweise überlastet (503/429) — bis zu 3-mal mit kurzer Pause erneut versuchen.
     let geminiRes;
     try {
-      geminiRes = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      for (let attempt = 0; attempt < 3; attempt++) {
+        geminiRes = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (geminiRes.ok || (geminiRes.status !== 503 && geminiRes.status !== 429)) break;
+        await new Promise((r) => setTimeout(r, 700 * (attempt + 1)));
+      }
     } catch {
       return json({ error: "KI nicht erreichbar." }, 502);
     }
