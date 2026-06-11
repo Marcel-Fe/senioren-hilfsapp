@@ -8,6 +8,34 @@ const Notfall = (() => {
   const ID = "notfall";
   const view = { mode: "show" };
 
+  // Fest hinterlegte, bundesweit gültige Notruf- und Hilfenummern (kostenlos, rund um die Uhr,
+  // sofern nicht anders angegeben). Tippen wählt direkt.
+  const NOTRUF = [
+    { icon: "🚑", label: "Notruf – Rettung & Feuerwehr", nr: "112" },
+    { icon: "👮", label: "Polizei", nr: "110" },
+    { icon: "🩺", label: "Ärztlicher Bereitschaftsdienst", nr: "116117" },
+    { icon: "💊", label: "Apotheken-Notdienst", nr: "0800 0022833" },
+    { icon: "📞", label: "Silbernetz – für ältere Menschen", nr: "0800 4708090" },
+    { icon: "💬", label: "Telefonseelsorge", nr: "0800 1110111" },
+  ];
+
+  function renderNotruf() {
+    const rows = NOTRUF.map((n) => {
+      const tel = n.nr.replace(/[^0-9+]/g, "");
+      return `<li>
+        <span aria-hidden="true" style="font-size:1.5rem">${n.icon}</span>
+        <span style="flex:1"><strong>${UI.esc(n.label)}</strong><br>
+          <a href="tel:${tel}" style="color:var(--primary);font-weight:800;font-size:1.25rem">${UI.esc(n.nr)}</a></span>
+        <a class="btn" href="tel:${tel}" style="width:auto;padding:10px 16px;font-size:1rem">📞 Anrufen</a>
+      </li>`;
+    }).join("");
+    return `<div class="card" style="border-left:6px solid var(--danger)">
+      <strong>📞 Wichtige Notrufnummern</strong>
+      <p class="muted" style="margin:.3rem 0 8px">Tippen Sie auf eine Nummer oder „Anrufen", um direkt anzurufen.</p>
+      <ul class="list" style="margin-top:8px">${rows}</ul>
+    </div>`;
+  }
+
   function reset() {
     view.mode = "show";
   }
@@ -49,6 +77,8 @@ const Notfall = (() => {
       <button class="btn" id="nf-back" style="background:#e8edf6;color:var(--text);margin-bottom:16px">‹ Zurück</button>
       <h2 class="view-title">🆘 Notfall</h2>
       <p class="view-subtitle">Die wichtigsten Angaben für den Ernstfall.</p>
+
+      ${renderNotruf()}
 
       ${
         hasData

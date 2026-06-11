@@ -8,6 +8,15 @@ const state = {
   tab: "dashboard",
 };
 
+const APP_VERSION = "0.1.8";
+
+// Für „Zum Startbildschirm hinzufügen" (PWA-Installation), wenn der Browser es anbietet.
+let deferredInstallPrompt = null;
+window.addEventListener("beforeinstallprompt", (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+});
+
 // Definition der 5 Tabs (untere Navigation) — Module gemäß Spec.
 const TABS = [
   { id: "dashboard", label: "Start", icon: "🏠" },
@@ -113,10 +122,25 @@ async function renderDashboard(container) {
   const takenToday = new Set(intakes.filter((r) => r.date === todayKey).map((r) => r.medId));
   const takenCount = meds.filter((m) => takenToday.has(m.id)).length;
 
-  // Tageszeit-Begrüßung + ausgeschriebenes Datum.
+  // Tageszeit-Begrüßung (mit Vorname aus dem Profil) + ausgeschriebenes Datum.
+  const profil = typeof Profil !== "undefined" ? await Profil.get() : {};
+  const vorname = (profil.name || "").trim().split(/\s+/)[0] || "";
   const h = now.getHours();
-  const greet = h < 11 ? "Guten Morgen!" : h < 18 ? "Guten Tag!" : "Guten Abend!";
+  const tag = h < 11 ? "Guten Morgen" : h < 18 ? "Guten Tag" : "Guten Abend";
+  const greet = vorname ? `${tag}, ${vorname}!` : `${tag}!`;
   const dateStr = now.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
+  // Tagesfortschritt bei den Medikamenten.
+  const progressPct = meds.length ? Math.round((takenCount / meds.length) * 100) : 0;
+  const progressHtml = meds.length
+    ? `<div class="card">
+         <div style="display:flex;justify-content:space-between;align-items:center">
+           <strong>💊 Medikamente heute</strong>
+           <span class="muted">${takenCount} von ${meds.length}</span>
+         </div>
+         <div class="progress"><div class="progress-bar" style="width:${progressPct}%"></div></div>
+       </div>`
+    : "";
 
   const heuteMeds = meds.length
     ? `<ul class="list">${meds
@@ -165,7 +189,15 @@ async function renderDashboard(container) {
       <div class="stat"><div class="stat-icon" aria-hidden="true">📄</div><div class="stat-num">${docs.length}</div><div class="stat-label">Dokumente</div></div>
     </div>
 
+    ${progressHtml}
+
     ${dueHtml}
+
+    <button class="notfall-cta" data-goto="notfall">
+      <span class="nc-icon" aria-hidden="true">🆘</span>
+      <span style="flex:1">Notfall & Notrufnummern<br><span style="font-weight:500;font-size:0.95rem;color:var(--text-muted)">112, Hausarzt, Notfallkontakt</span></span>
+      <span aria-hidden="true">›</span>
+    </button>
 
     <h3 class="section-title">⚡ Schnellzugriff</h3>
     <div class="tile-grid">
@@ -181,7 +213,10 @@ async function renderDashboard(container) {
 
     <h3 class="section-title">💬 Frag die KI</h3>
     <div class="ki-box">
-      <textarea id="ki-input" placeholder="Ihre Frage … z. B. „Was bedeutet mein Arztbrief?“"></textarea>
+      <div class="ki-input-row">
+        <textarea id="ki-input" placeholder="Ihre Frage … z. B. „Was bedeutet mein Arztbrief?“"></textarea>
+        <button class="mic-btn" id="ki-mic" aria-label="Frage einsprechen" title="Frage einsprechen">🎤</button>
+      </div>
       <div class="ki-examples">
         ${KI_EXAMPLES.map((q) => `<button class="ki-example" data-example="${UI.esc(q)}">${UI.esc(q)}</button>`).join("")}
       </div>
@@ -203,6 +238,41 @@ async function renderDashboard(container) {
       container.querySelector("#ki-input").value = el.dataset.example;
     }),
   );
+
+  // Sprachbutton: Frage einsprechen (Browser-Spracherkennung, rein lokal).
+  const micBtn = container.querySelector("#ki-mic");
+  if (micBtn) {
+    if (typeof Voice === "undefined" || !Voice.supported()) {
+      micBtn.style.display = "none"; // Browser unterstützt keine Spracheingabe
+    } else {
+      let active = null;
+      micBtn.addEventListener("click", () => {
+        const input = container.querySelector("#ki-input");
+        if (active) {
+          active.stop();
+          return;
+        }
+        active = Voice.listen({
+          onStart: () => micBtn.classList.add("recording"),
+          onResult: (text) => {
+            if (text) input.value = input.value ? input.value.trim() + " " + text : text;
+          },
+          onEnd: () => {
+            micBtn.classList.remove("recording");
+            active = null;
+            input.focus();
+          },
+          onError: (code) => {
+            micBtn.classList.remove("recording");
+            active = null;
+            if (code === "not-allowed" || code === "service-not-allowed") {
+              alert("Für die Spracheingabe bitte den Zugriff auf das Mikrofon erlauben.");
+            }
+          },
+        });
+      });
+    }
+  }
 
   const askBtn = container.querySelector("#ki-ask");
   askBtn.addEventListener("click", async () => {
@@ -264,22 +334,193 @@ function viewMehr() {
   `;
 }
 
-function renderEinstellungen(container) {
+// Schriftgröße auf das ganze Dokument anwenden (Basis 18px × Faktor).
+function setFontScale(scale) {
+  document.documentElement.style.fontSize = 18 * (scale || 1) + "px";
+}
+async function applyFontScale() {
+  const set = (await DB.get("einstellungen", "settings")) || {};
+  if (set.fontScale && set.fontScale !== 1) setFontScale(set.fontScale);
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+    r.readAsDataURL(blob);
+  });
+}
+
+// Sicherung: alle lokalen Daten (inkl. Dokument-Dateien als Base64) in eine JSON-Datei.
+async function exportBackup() {
+  const stores = ["documents", "medications", "settings", "intakes"];
+  const dump = { app: "alltagsbegleiter", version: APP_VERSION, exportedAt: new Date().toISOString(), data: {} };
+  for (const s of stores) {
+    const rows = await DB.getAll(s);
+    dump.data[s] = [];
+    for (const r of rows) {
+      if (r.blob instanceof Blob) {
+        dump.data[s].push({ ...r, blob: await blobToDataUrl(r.blob), _blobField: true });
+      } else {
+        dump.data[s].push(r);
+      }
+    }
+  }
+  const blob = new Blob([JSON.stringify(dump)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `alltagsbegleiter-sicherung-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function importBackup(file) {
+  const text = await file.text();
+  const dump = JSON.parse(text);
+  if (!dump || !dump.data) throw new Error("Keine gültige Sicherungsdatei.");
+  for (const s of Object.keys(dump.data)) {
+    for (const r of dump.data[s]) {
+      const row = { ...r };
+      if (row._blobField) {
+        row.blob = await (await fetch(row.blob)).blob();
+        delete row._blobField;
+      }
+      await DB.put(row, s);
+    }
+  }
+}
+
+async function renderEinstellungen(container) {
+  const set = (await DB.get("einstellungen", "settings")) || {};
+  const scale = set.fontScale || 1;
+  const SCALES = [["Normal", 1], ["Groß", 1.15], ["Sehr groß", 1.3]];
+
   container.innerHTML = `
     <button class="btn" id="set-back" style="background:#e8edf6;color:var(--text);margin-bottom:16px">‹ Zurück</button>
-    <h2 class="view-title">Einstellungen</h2>
+    <h2 class="view-title">⚙️ Einstellungen</h2>
+
     <div class="card">
-      <strong>Datenschutz</strong>
-      <p style="margin:.4rem 0 0">Alle Ihre Daten (Dokumente, Medikamente, Notfalldaten) liegen ausschließlich auf diesem Gerät.</p>
+      <strong>🔤 Schriftgröße</strong>
+      <p class="muted" style="margin:.3rem 0 10px">Stellen Sie die Schrift so ein, dass Sie alles gut lesen können.</p>
+      <div class="seg">
+        ${SCALES.map(
+          ([label, val]) =>
+            `<button class="seg-btn ${scale === val ? "active" : ""}" data-scale="${val}">${label}</button>`,
+        ).join("")}
+      </div>
     </div>
+
     <div class="card">
-      <strong>Alle Daten löschen</strong>
+      <strong>📤 App weitergeben</strong>
+      <p class="muted" style="margin:.3rem 0 10px">Empfehlen Sie die App Ihren Angehörigen oder fügen Sie sie zum Startbildschirm hinzu.</p>
+      <button class="btn" id="set-share">📤 App teilen</button>
+      <button class="btn" id="set-install" style="margin-top:10px;background:#e8edf6;color:var(--text)">📲 Zum Startbildschirm hinzufügen</button>
+    </div>
+
+    <div class="card">
+      <strong>💾 Datensicherung</strong>
+      <p class="muted" style="margin:.3rem 0 10px">Ihre Daten liegen nur auf diesem Gerät. Erstellen Sie regelmäßig eine Sicherung, damit nichts verloren geht.</p>
+      <button class="btn" id="set-export">⬇️ Sicherung speichern</button>
+      <button class="btn" id="set-import-btn" style="margin-top:10px;background:#e8edf6;color:var(--text)">⬆️ Sicherung laden</button>
+      <input type="file" id="set-import" accept="application/json,.json" hidden />
+      <div id="set-backup-status" class="muted" style="margin-top:8px"></div>
+    </div>
+
+    <div class="card">
+      <strong>🔒 Datenschutz</strong>
+      <p style="margin:.4rem 0 0">Alle Ihre Daten (Dokumente, Medikamente, Notfalldaten) bleiben ausschließlich auf diesem Gerät. Es gibt kein Benutzerkonto, nichts wird an einen Server gesendet — außer dem Text, den Sie der KI-Hilfe stellen.</p>
+    </div>
+
+    <div class="card">
+      <strong>🗑️ Alle Daten löschen</strong>
       <p class="muted" style="margin:.4rem 0 12px">Entfernt unwiderruflich alle Dokumente, Medikamente und Notfalldaten von diesem Gerät.</p>
       <button class="btn" id="set-delete" style="background:var(--danger)">🗑️ Alle Daten löschen</button>
       <div id="set-status" class="muted" style="margin-top:8px"></div>
     </div>
+
+    <div class="card" style="text-align:center">
+      <strong>🫶 Alltagsbegleiter</strong>
+      <p class="muted" style="margin:.3rem 0 0">Version ${APP_VERSION} · Ihre digitale Lebensakte</p>
+    </div>
   `;
+
   container.querySelector("#set-back").addEventListener("click", () => setTab("mehr"));
+
+  // Schriftgröße
+  container.querySelectorAll("[data-scale]").forEach((b) =>
+    b.addEventListener("click", async () => {
+      const val = Number(b.dataset.scale);
+      setFontScale(val);
+      await DB.put({ id: "einstellungen", ...set, fontScale: val }, "settings");
+      container.querySelectorAll("[data-scale]").forEach((x) => x.classList.toggle("active", x === b));
+    }),
+  );
+
+  // Teilen
+  container.querySelector("#set-share").addEventListener("click", async () => {
+    const shareData = {
+      title: "Alltagsbegleiter",
+      text: "Eine einfache App für Senioren: Dokumente, Medikamente, Pflege und Erinnerungen.",
+      url: location.href,
+    };
+    try {
+      if (navigator.share) await navigator.share(shareData);
+      else {
+        await navigator.clipboard.writeText(location.href);
+        alert("Link in die Zwischenablage kopiert: " + location.href);
+      }
+    } catch {
+      /* abgebrochen */
+    }
+  });
+
+  // Installieren
+  const installBtn = container.querySelector("#set-install");
+  installBtn.addEventListener("click", async () => {
+    if (deferredInstallPrompt) {
+      deferredInstallPrompt.prompt();
+      await deferredInstallPrompt.userChoice;
+      deferredInstallPrompt = null;
+    } else {
+      alert(
+        "So fügen Sie die App hinzu:\n\n• iPhone (Safari): unten auf „Teilen“ und dann „Zum Home-Bildschirm“.\n• Android (Chrome): oben rechts auf das Menü ⋮ und dann „App installieren“.",
+      );
+    }
+  });
+
+  // Sicherung speichern / laden
+  container.querySelector("#set-export").addEventListener("click", async () => {
+    const status = container.querySelector("#set-backup-status");
+    status.textContent = "Sicherung wird erstellt …";
+    try {
+      await exportBackup();
+      status.textContent = "✅ Sicherung gespeichert (in Ihren Downloads).";
+    } catch (err) {
+      status.textContent = "⚠️ " + (err && err.message ? err.message : "Sicherung fehlgeschlagen.");
+    }
+  });
+  const importInput = container.querySelector("#set-import");
+  container.querySelector("#set-import-btn").addEventListener("click", () => importInput.click());
+  importInput.addEventListener("change", async () => {
+    const file = importInput.files && importInput.files[0];
+    if (!file) return;
+    const status = container.querySelector("#set-backup-status");
+    if (!confirm("Sicherung jetzt laden? Vorhandene Einträge mit gleicher Kennung werden überschrieben.")) return;
+    status.textContent = "Sicherung wird geladen …";
+    try {
+      await importBackup(file);
+      status.textContent = "✅ Sicherung geladen.";
+    } catch (err) {
+      status.textContent = "⚠️ " + (err && err.message ? err.message : "Laden fehlgeschlagen.");
+    }
+    importInput.value = "";
+  });
+
+  // Alle Daten löschen
   container.querySelector("#set-delete").addEventListener("click", async () => {
     if (!confirm("Wirklich ALLE Daten unwiderruflich löschen?")) return;
     await DB.clearAll();
@@ -444,6 +685,9 @@ drawer.addEventListener("click", (e) => {
 });
 
 render();
+
+// Gespeicherte Schriftgröße anwenden.
+applyFontScale();
 
 // Erinnerungs-Watcher starten (zeigt Benachrichtigungen zur Uhrzeit, solange die App offen ist).
 if (typeof Erinnerungen !== "undefined") Erinnerungen.startWatcher();
