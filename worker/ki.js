@@ -10,7 +10,7 @@
      2) wrangler deploy
    Danach die Worker-URL in js/ki.js -> WORKER_URL eintragen. */
 
-const MODEL = "gemini-2.5-flash";
+const MODEL = "gemini-2.5-flash-lite";
 
 const PFLICHT_HINWEIS =
   "Nur zur Information, ersetzt keine medizinische oder rechtliche Beratung.";

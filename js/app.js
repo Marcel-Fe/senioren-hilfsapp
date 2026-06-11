@@ -8,7 +8,7 @@ const state = {
   tab: "dashboard",
 };
 
-const APP_VERSION = "0.1.8";
+const APP_VERSION = "0.1.9";
 
 // Für „Zum Startbildschirm hinzufügen" (PWA-Installation), wenn der Browser es anbietet.
 let deferredInstallPrompt = null;
@@ -63,6 +63,7 @@ const MENU = [
   },
   { label: "Pflege", icon: "🤝", tab: "pflege" },
   { label: "Notfall", icon: "🆘", tab: "notfall" },
+  { label: "Meine Kontakte", icon: "📇", tab: "kontakte" },
   { label: "Angehörige", icon: "👨‍👩‍👧", tab: "angehoerige" },
   { label: "Profil", icon: "👤", tab: "profil" },
   { label: "Einstellungen", icon: "⚙️", tab: "einstellungen" },
@@ -80,6 +81,7 @@ function setTab(tabId) {
     if (typeof Profil !== "undefined") Profil.reset();
     if (typeof Angehoerige !== "undefined") Angehoerige.reset();
     if (typeof Erinnerungen !== "undefined") Erinnerungen.reset();
+    if (typeof Kontakte !== "undefined") Kontakte.reset();
   }
   state.tab = tabId;
   render();
@@ -281,7 +283,7 @@ async function renderDashboard(container) {
     const frage = input.value.trim();
     if (!frage) return;
     askBtn.disabled = true;
-    answer.innerHTML = `<div class="card muted">Die KI denkt nach …</div>`;
+    answer.innerHTML = `<div class="card muted ki-thinking"><span class="spinner"></span><span>Die KI liest Ihre Frage und antwortet gleich …</span></div>`;
     try {
       const data = await KI.chat([{ role: "user", content: frage }]);
       answer.innerHTML = UI.resultHtml(data);
@@ -312,6 +314,7 @@ function placeholderView(title, subtitle, hint) {
 function viewMehr() {
   const items = [
     ["🆘", "Notfall", "notfall"],
+    ["📇", "Meine Kontakte", "kontakte"],
     ["⏰", "Erinnerungen", "erinnerungen"],
     ["⚙️", "Einstellungen", "einstellungen"],
     ["❤️", "Gesundheitsakte", "gesundheit"],
@@ -579,6 +582,10 @@ function render() {
     Erinnerungen.renderInto(app);
     return;
   }
+  if (state.tab === "kontakte") {
+    Kontakte.renderInto(app);
+    return;
+  }
   if (state.tab === "einstellungen") {
     renderEinstellungen(app);
     return;
@@ -591,6 +598,25 @@ document.addEventListener("click", (e) => {
   const goto = e.target.closest("[data-goto]");
   if (goto) {
     setTab(goto.dataset.goto);
+    return;
+  }
+  // Vorlesen-Button in KI-Antworten (Sprachausgabe).
+  const sb = e.target.closest(".speak-btn");
+  if (sb && typeof Voice !== "undefined") {
+    const result = sb.closest(".ui-result");
+    const src = result ? result.querySelector(".speak-src") : null;
+    const text = src ? src.textContent : "";
+    if (Voice.speaking()) {
+      Voice.stopSpeak();
+      sb.textContent = "🔊 Vorlesen";
+      return;
+    }
+    sb.textContent = "⏹️ Stopp";
+    Voice.speak(text, {
+      onEnd: () => {
+        sb.textContent = "🔊 Vorlesen";
+      },
+    });
   }
 });
 

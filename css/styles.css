@@ -464,6 +464,25 @@ body.no-scroll {
   50% { box-shadow: 0 0 0 8px rgba(238, 93, 80, 0); }
 }
 
+/* ---------- KI: Lade-/Denk-Anzeige ---------- */
+.ki-thinking {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ki-thinking .spinner {
+  width: 22px;
+  height: 22px;
+  border: 3px solid var(--primary-soft);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  flex: none;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
 /* ---------- Einstellungen: Schriftgrößen-Schalter ---------- */
 .seg {
   display: flex;

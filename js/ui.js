@@ -53,9 +53,24 @@ const UI = (() => {
           .join("")}</div>`
       : "";
 
+    // Text zum Vorlesen aus allen Teilen zusammensetzen.
+    const speakParts = [d.ueberschrift, d.zusammenfassung]
+      .concat(Array.isArray(d.details) ? d.details : [])
+      .concat(Array.isArray(d.fristen) ? d.fristen.map((f) => `${f.titel}${f.datum ? " am " + f.datum : ""}`) : [])
+      .concat(Array.isArray(d.aufgaben) ? d.aufgaben.map((t) => t.titel) : [])
+      .concat([d.hinweis])
+      .filter(Boolean)
+      .join(". ");
+    const canSpeak = typeof Voice !== "undefined" && Voice.ttsSupported && Voice.ttsSupported();
+    const speakBtn = canSpeak
+      ? `<button class="btn speak-btn" type="button" style="background:#e8edf6;color:var(--text);margin-bottom:12px">🔊 Vorlesen</button>
+         <span class="speak-src" hidden>${esc(speakParts)}</span>`
+      : "";
+
     return `
       <div class="ui-result">
         <h3 class="ui-heading">${esc(d.ueberschrift || "Antwort")} ${klass}</h3>
+        ${speakBtn}
         <div class="card"><strong>Zusammenfassung</strong>
           <p style="margin:.4rem 0 0">${esc(d.zusammenfassung || "")}</p></div>
         ${details}
