@@ -8,7 +8,15 @@ const state = {
   tab: "dashboard",
 };
 
-const APP_VERSION = "0.1.9";
+const APP_VERSION = "0.2.0";
+
+// Vorlese-Einstellung (Stimme + Geschwindigkeit), aus den Einstellungen geladen.
+const voicePref = { voiceURI: null, rate: 0.95 };
+async function loadVoicePref() {
+  const set = (await DB.get("einstellungen", "settings")) || {};
+  if (set.voiceURI) voicePref.voiceURI = set.voiceURI;
+  if (set.voiceRate) voicePref.rate = set.voiceRate;
+}
 
 // Für „Zum Startbildschirm hinzufügen" (PWA-Installation), wenn der Browser es anbietet.
 let deferredInstallPrompt = null;
@@ -132,6 +140,16 @@ async function renderDashboard(container) {
   const greet = vorname ? `${tag}, ${vorname}!` : `${tag}!`;
   const dateStr = now.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
 
+  // Begrüßungs-Onboarding: nach dem Namen fragen, wenn noch keiner hinterlegt ist.
+  const onboardHtml = !vorname
+    ? `<div class="card" style="border-left:6px solid var(--primary)">
+        <strong>👋 Herzlich willkommen!</strong>
+        <p class="muted" style="margin:.3rem 0 10px">Wie dürfen wir Sie begrüßen? Ihr Name bleibt nur auf diesem Gerät.</p>
+        <input id="onb-name" type="text" placeholder="Ihr Vorname" style="width:100%;padding:12px;font-size:1.1rem;border:1px solid var(--border);border-radius:12px" />
+        <button class="btn" id="onb-save" style="margin-top:10px">Speichern</button>
+      </div>`
+    : "";
+
   // Tagesfortschritt bei den Medikamenten.
   const progressPct = meds.length ? Math.round((takenCount / meds.length) * 100) : 0;
   const progressHtml = meds.length
@@ -185,6 +203,8 @@ async function renderDashboard(container) {
       <span class="hero-status">${tasks.length ? "📌" : "✨"} ${statusText}</span>
     </div>
 
+    ${onboardHtml}
+
     <div class="stat-grid">
       <div class="stat"><div class="stat-icon" aria-hidden="true">💊</div><div class="stat-num">${takenCount}/${meds.length}</div><div class="stat-label">heute genommen</div></div>
       <div class="stat"><div class="stat-icon" aria-hidden="true">✅</div><div class="stat-num">${tasks.length}</div><div class="stat-label">offene Aufgaben</div></div>
@@ -234,6 +254,17 @@ async function renderDashboard(container) {
       renderDashboard(container);
     }),
   );
+
+  // Onboarding: Name speichern → persönliche Begrüßung.
+  const onbSave = container.querySelector("#onb-save");
+  if (onbSave) {
+    onbSave.addEventListener("click", async () => {
+      const val = container.querySelector("#onb-name").value.trim();
+      if (!val) return;
+      await DB.put({ ...profil, id: "profil", name: val }, "settings");
+      renderDashboard(container);
+    });
+  }
 
   container.querySelectorAll("[data-example]").forEach((el) =>
     el.addEventListener("click", () => {
@@ -401,6 +432,37 @@ async function renderEinstellungen(container) {
   const set = (await DB.get("einstellungen", "settings")) || {};
   const scale = set.fontScale || 1;
   const SCALES = [["Normal", 1], ["Groß", 1.15], ["Sehr groß", 1.3]];
+  const RATES = [["Langsam", 0.8], ["Normal", 0.95], ["Schneller", 1.1]];
+  const curRate = set.voiceRate || 0.95;
+
+  // Verfügbare deutsche Vorlese-Stimmen laden (vom Gerät).
+  const ttsOn = typeof Voice !== "undefined" && Voice.ttsSupported();
+  if (ttsOn) await Voice.ready();
+  const deVoices = ttsOn ? Voice.deVoices() : [];
+  const best = ttsOn ? Voice.bestDe() : null;
+  const selectedUri = set.voiceURI || (best ? best.voiceURI : "");
+  const voiceCard = ttsOn
+    ? `<div class="card">
+        <strong>🔊 Vorlesen &amp; Stimme</strong>
+        <p class="muted" style="margin:.3rem 0 10px">Wählen Sie eine Stimme zum Vorlesen der KI-Antworten. Stimmen mit „Online" oder „Natürlich" klingen meist am menschlichsten.</p>
+        ${
+          deVoices.length
+            ? `<label for="set-voice"><strong>Stimme</strong></label>
+               <select id="set-voice" style="width:100%;margin:6px 0 14px;padding:12px;font-size:1.05rem;border:1px solid var(--border);border-radius:12px">
+                 ${deVoices
+                   .map((v) => `<option value="${UI.esc(v.voiceURI)}" ${v.voiceURI === selectedUri ? "selected" : ""}>${UI.esc(v.name)}${v.localService === false ? " · Online" : ""}</option>`)
+                   .join("")}
+               </select>`
+            : `<p class="muted">Auf diesem Gerät wurde nur die Standardstimme gefunden. Auf dem Handy gibt es meist natürlichere Stimmen (siehe Hinweis unten).</p>`
+        }
+        <label><strong>Geschwindigkeit</strong></label>
+        <div class="seg" style="margin-top:6px">
+          ${RATES.map(([l, v]) => `<button class="seg-btn ${curRate === v ? "active" : ""}" data-rate="${v}">${l}</button>`).join("")}
+        </div>
+        <button class="btn" id="set-voice-test" style="margin-top:14px;background:#e8edf6;color:var(--text)">▶️ Probe hören</button>
+        <p class="muted" style="margin-top:10px;font-size:0.95rem">Tipp für die natürlichste Stimme: Auf dem Handy in den <strong>System-Einstellungen → Sprachausgabe</strong> eine „neuronale" bzw. „erweiterte" deutsche Stimme herunterladen — diese erscheint dann hier.</p>
+      </div>`
+    : "";
 
   container.innerHTML = `
     <button class="btn" id="set-back" style="background:#e8edf6;color:var(--text);margin-bottom:16px">‹ Zurück</button>
@@ -416,6 +478,8 @@ async function renderEinstellungen(container) {
         ).join("")}
       </div>
     </div>
+
+    ${voiceCard}
 
     <div class="card">
       <strong>📤 App weitergeben</strong>
@@ -445,6 +509,12 @@ async function renderEinstellungen(container) {
       <div id="set-status" class="muted" style="margin-top:8px"></div>
     </div>
 
+    <div class="card" data-goto="rechtliches" style="cursor:pointer;display:flex;align-items:center;gap:12px">
+      <span aria-hidden="true" style="font-size:1.5rem">📜</span>
+      <span style="flex:1"><strong>Rechtliches &amp; Datenschutz</strong><br><span class="muted" style="font-size:0.95rem">Datenschutz, Haftung, Impressum</span></span>
+      <span aria-hidden="true">›</span>
+    </div>
+
     <div class="card" style="text-align:center">
       <strong>🫶 Alltagsbegleiter</strong>
       <p class="muted" style="margin:.3rem 0 0">Version ${APP_VERSION} · Ihre digitale Lebensakte</p>
@@ -452,6 +522,32 @@ async function renderEinstellungen(container) {
   `;
 
   container.querySelector("#set-back").addEventListener("click", () => setTab("mehr"));
+
+  // Vorlesen: Stimme, Geschwindigkeit, Probe
+  const voiceSel = container.querySelector("#set-voice");
+  if (voiceSel) {
+    voiceSel.addEventListener("change", async () => {
+      voicePref.voiceURI = voiceSel.value;
+      await DB.put({ id: "einstellungen", ...set, voiceURI: voiceSel.value }, "settings");
+    });
+  }
+  container.querySelectorAll("[data-rate]").forEach((b) =>
+    b.addEventListener("click", async () => {
+      const val = Number(b.dataset.rate);
+      voicePref.rate = val;
+      await DB.put({ id: "einstellungen", ...set, voiceRate: val }, "settings");
+      container.querySelectorAll("[data-rate]").forEach((x) => x.classList.toggle("active", x === b));
+    }),
+  );
+  const testBtn = container.querySelector("#set-voice-test");
+  if (testBtn) {
+    testBtn.addEventListener("click", () => {
+      Voice.speak("Guten Tag! So klingt das Vorlesen in der App Alltagsbegleiter.", {
+        voiceURI: voiceSel ? voiceSel.value : voicePref.voiceURI,
+        rate: Number((container.querySelector("[data-rate].active") || {}).dataset?.rate || voicePref.rate),
+      });
+    });
+  }
 
   // Schriftgröße
   container.querySelectorAll("[data-scale]").forEach((b) =>
@@ -531,6 +627,57 @@ async function renderEinstellungen(container) {
   });
 }
 
+function renderRechtliches(container) {
+  container.innerHTML = `
+    <button class="btn" id="rl-back" style="background:#e8edf6;color:var(--text);margin-bottom:16px">‹ Zurück</button>
+    <h2 class="view-title">📜 Rechtliches &amp; Datenschutz</h2>
+    <p class="view-subtitle">Stand: Juni 2026</p>
+
+    <div class="card">
+      <strong>🔒 Datenschutz auf einen Blick</strong>
+      <p style="margin:.4rem 0 0">Diese App speichert Ihre Daten <strong>nur auf Ihrem Gerät</strong>. Es gibt kein Benutzerkonto, keine Werbung, keine Cookies und kein Nutzer-Tracking.</p>
+    </div>
+
+    <div class="card">
+      <strong>📁 Ihre Daten auf dem Gerät</strong>
+      <p style="margin:.4rem 0 0">Dokumente, Medikamente, Kontakte, Gesundheits- und Notfalldaten sowie Einstellungen werden ausschließlich lokal im Speicher Ihres Browsers (IndexedDB) abgelegt. Niemand außer Ihnen hat darauf Zugriff. Sie können alle Daten jederzeit über <strong>Einstellungen → Alle Daten löschen</strong> entfernen oder über <strong>Datensicherung</strong> exportieren.</p>
+    </div>
+
+    <div class="card">
+      <strong>🤖 KI-Hilfe (wichtig)</strong>
+      <p style="margin:.4rem 0 0">Wenn Sie die KI-Hilfe nutzen, wird der von Ihnen eingegebene Text bzw. der aus einem Dokument erkannte Text zur Beantwortung an unseren Server (Cloudflare) und an <strong>Google Gemini</strong> übertragen. <strong>Bilder werden nie gesendet</strong> — nur Text. Senden Sie keine Angaben, die Sie nicht weitergeben möchten. Eine dauerhafte Speicherung Ihrer Anfragen durch uns erfolgt nicht.</p>
+    </div>
+
+    <div class="card">
+      <strong>🎤 Sprache</strong>
+      <p style="margin:.4rem 0 0">Die <strong>Spracheingabe</strong> (Mikrofon) wird von Ihrem Browser bzw. Gerät verarbeitet. Je nach Browser (z. B. Google Chrome) kann die Sprachaufnahme zur Erkennung an den jeweiligen Anbieter (Google bzw. Apple) übertragen werden. Sie ist nur aktiv, solange Sie den Mikrofon-Knopf benutzen. Das <strong>Vorlesen</strong> erfolgt durch Ihr Gerät.</p>
+    </div>
+
+    <div class="card">
+      <strong>🌐 Hosting</strong>
+      <p style="margin:.4rem 0 0">Die App wird über GitHub Pages (GitHub Inc., USA) bereitgestellt. Beim Aufruf werden technisch bedingt Zugriffsdaten (z. B. IP-Adresse) verarbeitet, wie bei jedem Aufruf einer Internetseite.</p>
+    </div>
+
+    <div class="card" style="border-left:6px solid var(--danger)">
+      <strong>⚠️ Wichtiger Hinweis (Haftung)</strong>
+      <p style="margin:.4rem 0 0">Diese App und die KI ersetzen <strong>keine ärztliche, pflegerische oder rechtliche Beratung</strong>. Es werden keine Diagnosen gestellt und keine Dosierungs- oder Therapieempfehlungen gegeben. Alle Inhalte dienen nur Ihrer Information. <strong>Im Notfall wählen Sie 112.</strong></p>
+    </div>
+
+    <div class="card">
+      <strong>🧩 Verwendete Dienste</strong>
+      <p style="margin:.4rem 0 0">Cloudflare (KI-Vermittlung), Google Gemini (KI-Antworten), Tesseract.js (Texterkennung – läuft lokal in Ihrem Browser).</p>
+    </div>
+
+    <div class="card">
+      <strong>🏷️ Impressum</strong>
+      <p style="margin:.4rem 0 0 0">Verantwortlich für dieses Angebot:</p>
+      <p class="muted" style="margin:.3rem 0 0">[Bitte hier Name und Anschrift des Anbieters eintragen]<br>[E-Mail-Adresse für Rückfragen]</p>
+      <p class="muted" style="margin:.6rem 0 0;font-size:0.95rem">Hinweis: Sobald die App öffentlich bereitgestellt wird, ist in Deutschland ein vollständiges Impressum (§ 5 DDG) erforderlich.</p>
+    </div>
+  `;
+  container.querySelector("#rl-back").addEventListener("click", () => setTab("einstellungen"));
+}
+
 function renderMain() {
   switch (state.tab) {
     case "mehr":
@@ -590,6 +737,10 @@ function render() {
     renderEinstellungen(app);
     return;
   }
+  if (state.tab === "rechtliches") {
+    renderRechtliches(app);
+    return;
+  }
   app.innerHTML = renderMain();
 }
 
@@ -613,6 +764,8 @@ document.addEventListener("click", (e) => {
     }
     sb.textContent = "⏹️ Stopp";
     Voice.speak(text, {
+      voiceURI: voicePref.voiceURI,
+      rate: voicePref.rate,
       onEnd: () => {
         sb.textContent = "🔊 Vorlesen";
       },
@@ -712,8 +865,9 @@ drawer.addEventListener("click", (e) => {
 
 render();
 
-// Gespeicherte Schriftgröße anwenden.
+// Gespeicherte Schriftgröße und Vorlese-Einstellung anwenden.
 applyFontScale();
+loadVoicePref();
 
 // Erinnerungs-Watcher starten (zeigt Benachrichtigungen zur Uhrzeit, solange die App offen ist).
 if (typeof Erinnerungen !== "undefined") Erinnerungen.startWatcher();
