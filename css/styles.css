@@ -2,20 +2,22 @@
    Alle Farben/Maße als Tokens an einer Stelle, damit Anpassungen leicht sind. */
 
 :root {
-  --bg: #eef2f9;
+  /* Horizon-UI-Palette (Indigo/Cyan), aber seniorengerecht: dunkler Text, hohe Kontraste. */
+  --bg: #f4f7fe;
   --surface: #ffffff;
-  --text: #14213d;
+  --text: #1b2559;
   --text-muted: #5a6b87;
-  --primary: #2563eb;
-  --primary-dark: #1d4ed8;
-  --primary-soft: #e7eefe;
+  --primary: #4318ff;
+  --primary-dark: #3311cc;
+  --primary-soft: #eef0ff;
   --primary-text: #ffffff;
-  --accent: #0ea5e9;
-  --border: #dbe3f0;
-  --danger: #dc2626;
-  --radius: 18px;
-  --shadow: 0 2px 10px rgba(20, 33, 61, 0.06);
-  --shadow-lg: 0 12px 32px rgba(20, 33, 61, 0.16);
+  --accent: #6ad2ff;
+  --success: #05cd99;
+  --border: #e6ebf6;
+  --danger: #ee5d50;
+  --radius: 20px;
+  --shadow: 0 8px 24px rgba(112, 144, 176, 0.12);
+  --shadow-lg: 0 18px 40px rgba(112, 144, 176, 0.22);
   --header-h: 64px;
   --maxw: 760px;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
@@ -227,11 +229,11 @@ body.no-scroll {
 .hero {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, var(--primary-dark) 0%, var(--accent) 100%);
+  background: linear-gradient(135deg, #4318ff 0%, #868cff 55%, #6ad2ff 100%);
   color: #fff;
   border-radius: 24px;
   padding: 24px 22px;
-  box-shadow: var(--shadow-lg);
+  box-shadow: 0 18px 40px rgba(67, 24, 255, 0.28);
   margin-bottom: 18px;
 }
 .hero::after {
@@ -290,25 +292,46 @@ body.no-scroll {
 .stat {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 16px 8px;
+  border-radius: var(--radius);
+  padding: 18px 8px 16px;
   box-shadow: var(--shadow);
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
 }
 .stat-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 1.5rem;
   line-height: 1;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+/* Horizon-typisch: je Kachel eine eigene Akzentfarbe im Icon-Kreis. */
+.stat:nth-child(1) .stat-icon {
+  background: #eef0ff;
+}
+.stat:nth-child(2) .stat-icon {
+  background: #e1faf3;
+}
+.stat:nth-child(3) .stat-icon {
+  background: #e3f6ff;
 }
 .stat-num {
   font-size: 1.7rem;
   font-weight: 800;
-  color: var(--primary);
-  margin-top: 6px;
+  color: var(--text);
+  line-height: 1.1;
 }
 .stat-label {
   font-size: 0.92rem;
   color: var(--text-muted);
-  margin-top: 2px;
   line-height: 1.2;
 }
 
