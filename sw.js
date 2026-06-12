@@ -1,29 +1,29 @@
 /* Service-Worker: macht die App offline-fähig und installierbar.
    CACHE_VERSION bei jeder Asset-Änderung erhöhen (muss zu ?v= in index.html passen). */
 
-const CACHE_VERSION = "0.2.0";
+const CACHE_VERSION = "0.2.1";
 const CACHE_NAME = `alltagsbegleiter-${CACHE_VERSION}`;
 
 const ASSETS = [
   ".",
   "index.html",
-  "css/styles.css?v=0.2.0",
-  "js/db.js?v=0.2.0",
-  "js/ocr.js?v=0.2.0",
-  "js/ui.js?v=0.2.0",
-  "js/voice.js?v=0.2.0",
-  "js/ki.js?v=0.2.0",
-  "js/profil.js?v=0.2.0",
-  "js/documents.js?v=0.2.0",
-  "js/formulare.js?v=0.2.0",
-  "js/mediplan.js?v=0.2.0",
-  "js/notfall.js?v=0.2.0",
-  "js/pflege.js?v=0.2.0",
-  "js/gesundheit.js?v=0.2.0",
-  "js/angehoerige.js?v=0.2.0",
-  "js/erinnerungen.js?v=0.2.0",
-  "js/kontakte.js?v=0.2.0",
-  "js/app.js?v=0.2.0",
+  "css/styles.css?v=0.2.1",
+  "js/db.js?v=0.2.1",
+  "js/ocr.js?v=0.2.1",
+  "js/ui.js?v=0.2.1",
+  "js/voice.js?v=0.2.1",
+  "js/ki.js?v=0.2.1",
+  "js/profil.js?v=0.2.1",
+  "js/documents.js?v=0.2.1",
+  "js/formulare.js?v=0.2.1",
+  "js/mediplan.js?v=0.2.1",
+  "js/notfall.js?v=0.2.1",
+  "js/pflege.js?v=0.2.1",
+  "js/gesundheit.js?v=0.2.1",
+  "js/angehoerige.js?v=0.2.1",
+  "js/erinnerungen.js?v=0.2.1",
+  "js/kontakte.js?v=0.2.1",
+  "js/app.js?v=0.2.1",
   "manifest.json",
   "icons/icon.svg",
   "icons/icon-180.png",
@@ -51,9 +51,25 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  if (event.request.method !== "GET") return;
-  // Cache-first für die App-Hülle, sonst Netzwerk.
-  event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request)),
-  );
+  const req = event.request;
+  if (req.method !== "GET") return;
+
+  // HTML/Navigation: network-first, damit neue Versionen sofort ankommen (offline: Cache).
+  const isHTML =
+    req.mode === "navigate" || (req.headers.get("accept") || "").includes("text/html");
+  if (isHTML) {
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((c) => c.put(req, copy));
+          return res;
+        })
+        .catch(() => caches.match(req).then((c) => c || caches.match("index.html"))),
+    );
+    return;
+  }
+
+  // Übrige Dateien (mit ?v= versioniert): cache-first, sonst Netzwerk.
+  event.respondWith(caches.match(req).then((cached) => cached || fetch(req)));
 });

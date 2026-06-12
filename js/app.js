@@ -8,7 +8,7 @@ const state = {
   tab: "dashboard",
 };
 
-const APP_VERSION = "0.2.0";
+const APP_VERSION = "0.2.1";
 
 // Vorlese-Einstellung (Stimme + Geschwindigkeit), aus den Einstellungen geladen.
 const voicePref = { voiceURI: null, rate: 0.95 };
@@ -435,34 +435,38 @@ async function renderEinstellungen(container) {
   const RATES = [["Langsam", 0.8], ["Normal", 0.95], ["Schneller", 1.1]];
   const curRate = set.voiceRate || 0.95;
 
-  // Verfügbare deutsche Vorlese-Stimmen laden (vom Gerät).
+  // Verfügbare Vorlese-Stimmen laden (vom Gerät). Deutsche zuerst; sonst alle anbieten.
   const ttsOn = typeof Voice !== "undefined" && Voice.ttsSupported();
   if (ttsOn) await Voice.ready();
-  const deVoices = ttsOn ? Voice.deVoices() : [];
+  const deList = ttsOn ? Voice.deVoices() : [];
+  const voiceList = deList.length ? deList : ttsOn ? Voice.allVoices() : [];
   const best = ttsOn ? Voice.bestDe() : null;
   const selectedUri = set.voiceURI || (best ? best.voiceURI : "");
   const voiceCard = ttsOn
     ? `<div class="card">
         <strong>🔊 Vorlesen &amp; Stimme</strong>
-        <p class="muted" style="margin:.3rem 0 10px">Wählen Sie eine Stimme zum Vorlesen der KI-Antworten. Stimmen mit „Online" oder „Natürlich" klingen meist am menschlichsten.</p>
+        <p class="muted" style="margin:.3rem 0 10px">Stimme zum Vorlesen der KI-Antworten. Stimmen mit „Online" oder „Natürlich" klingen meist am menschlichsten.</p>
         ${
-          deVoices.length
-            ? `<label for="set-voice"><strong>Stimme</strong></label>
+          voiceList.length
+            ? `<label for="set-voice"><strong>Stimme (${voiceList.length})</strong></label>
                <select id="set-voice" style="width:100%;margin:6px 0 14px;padding:12px;font-size:1.05rem;border:1px solid var(--border);border-radius:12px">
-                 ${deVoices
-                   .map((v) => `<option value="${UI.esc(v.voiceURI)}" ${v.voiceURI === selectedUri ? "selected" : ""}>${UI.esc(v.name)}${v.localService === false ? " · Online" : ""}</option>`)
+                 ${voiceList
+                   .map((v) => `<option value="${UI.esc(v.voiceURI)}" ${v.voiceURI === selectedUri ? "selected" : ""}>${UI.esc(v.name)} (${UI.esc(v.lang)})${v.localService === false ? " · Online" : ""}</option>`)
                    .join("")}
                </select>`
-            : `<p class="muted">Auf diesem Gerät wurde nur die Standardstimme gefunden. Auf dem Handy gibt es meist natürlichere Stimmen (siehe Hinweis unten).</p>`
+            : `<p class="muted" id="voice-empty">Die Stimmen Ihres Geräts werden geladen … Falls hier nichts erscheint, tippen Sie auf „Stimmen suchen".</p>`
         }
-        <label><strong>Geschwindigkeit</strong></label>
+        <div class="ui-actions" style="margin-top:0">
+          <button class="btn" id="set-voice-test" style="background:#e8edf6;color:var(--text)">▶️ Probe hören</button>
+          <button class="btn" id="set-voice-reload" style="background:#e8edf6;color:var(--text)">🔄 Stimmen suchen</button>
+        </div>
+        <label style="display:block;margin-top:14px"><strong>Geschwindigkeit</strong></label>
         <div class="seg" style="margin-top:6px">
           ${RATES.map(([l, v]) => `<button class="seg-btn ${curRate === v ? "active" : ""}" data-rate="${v}">${l}</button>`).join("")}
         </div>
-        <button class="btn" id="set-voice-test" style="margin-top:14px;background:#e8edf6;color:var(--text)">▶️ Probe hören</button>
-        <p class="muted" style="margin-top:10px;font-size:0.95rem">Tipp für die natürlichste Stimme: Auf dem Handy in den <strong>System-Einstellungen → Sprachausgabe</strong> eine „neuronale" bzw. „erweiterte" deutsche Stimme herunterladen — diese erscheint dann hier.</p>
+        <p class="muted" style="margin-top:12px;font-size:0.95rem">Tipp für die natürlichste Stimme: Auf dem Handy in den <strong>System-Einstellungen → Sprachausgabe</strong> eine „neuronale"/„erweiterte" deutsche Stimme herunterladen — sie erscheint dann hier.</p>
       </div>`
-    : "";
+    : `<div class="card"><strong>🔊 Vorlesen</strong><p class="muted" style="margin:.3rem 0 0">Dieser Browser unterstützt das Vorlesen leider nicht. Auf dem Handy (Chrome/Safari) funktioniert es.</p></div>`;
 
   container.innerHTML = `
     <button class="btn" id="set-back" style="background:#e8edf6;color:var(--text);margin-bottom:16px">‹ Zurück</button>
@@ -546,6 +550,14 @@ async function renderEinstellungen(container) {
         voiceURI: voiceSel ? voiceSel.value : voicePref.voiceURI,
         rate: Number((container.querySelector("[data-rate].active") || {}).dataset?.rate || voicePref.rate),
       });
+    });
+  }
+  const reloadBtn = container.querySelector("#set-voice-reload");
+  if (reloadBtn) reloadBtn.addEventListener("click", () => renderEinstellungen(container));
+  // Falls die Stimmenliste erst verzögert geladen wird, Ansicht automatisch erneuern.
+  if (ttsOn && !voiceList.length && typeof Voice.onChange === "function") {
+    Voice.onChange(() => {
+      if (state.tab === "einstellungen") renderEinstellungen(container);
     });
   }
 

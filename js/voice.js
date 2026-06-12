@@ -83,9 +83,15 @@ const Voice = (() => {
     });
   }
 
+  function allVoices() {
+    return voicesCache.length ? voicesCache : refresh();
+  }
   function deVoices() {
-    const list = voicesCache.length ? voicesCache : refresh();
-    return list.filter((v) => v.lang && v.lang.toLowerCase().startsWith("de"));
+    return allVoices().filter((v) => v.lang && v.lang.toLowerCase().startsWith("de"));
+  }
+  // Benachrichtigt, wenn die Stimmenliste (nach)geladen wurde.
+  function onChange(cb) {
+    if (synth) synth.addEventListener("voiceschanged", cb, { once: true });
   }
 
   // Höhere Punktzahl = natürlicher klingende Stimme.
@@ -143,5 +149,5 @@ const Voice = (() => {
     return true;
   }
 
-  return { supported, listen, ttsSupported, speaking, stopSpeak, speak, ready, deVoices, bestDe };
+  return { supported, listen, ttsSupported, speaking, stopSpeak, speak, ready, deVoices, allVoices, bestDe, onChange };
 })();
