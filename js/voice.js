@@ -94,10 +94,11 @@ const Voice = (() => {
     if (synth) synth.addEventListener("voiceschanged", cb, { once: true });
   }
 
-  // Höhere Punktzahl = natürlicher klingende Stimme.
+  // Höhere Punktzahl = bevorzugte Stimme. „Anna" (deutsche Apple-Stimme) wird klar bevorzugt.
   function score(v) {
     const n = (v.name || "").toLowerCase();
     let s = 0;
+    if (/\banna\b/.test(n)) s += 20; // gewünschte Standardstimme
     if (/neural|natural|natürlich|online|premium|enhanced|wavenet|studio/.test(n)) s += 6;
     if (/google/.test(n)) s += 3;
     if (/siri|stimme/.test(n)) s += 3;
