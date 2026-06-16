@@ -21,8 +21,20 @@ const Voice = (() => {
   }
 
   // ---------- Spracheingabe (Diktat) ----------
+  // iOS/iPadOS erkennen — dort funktioniert die Web-Spracherkennung in Safari nicht zuverlässig.
+  const isIOS =
+    /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
   function supported() {
     return !!Rec;
+  }
+  // Praktisch nutzbar? (Objekt vorhanden UND nicht iOS-Safari, wo es nicht funktioniert.)
+  function dictationUsable() {
+    return !!Rec && !isIOS;
+  }
+  function onIOS() {
+    return isIOS;
   }
   function listen(cb) {
     cb = cb || {};
@@ -150,5 +162,5 @@ const Voice = (() => {
     return true;
   }
 
-  return { supported, listen, ttsSupported, speaking, stopSpeak, speak, ready, deVoices, allVoices, bestDe, onChange };
+  return { supported, dictationUsable, onIOS, listen, ttsSupported, speaking, stopSpeak, speak, ready, deVoices, allVoices, bestDe, onChange };
 })();

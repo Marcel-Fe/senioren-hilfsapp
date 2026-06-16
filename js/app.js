@@ -8,7 +8,7 @@ const state = {
   tab: "dashboard",
 };
 
-const APP_VERSION = "0.2.2";
+const APP_VERSION = "0.3.0";
 
 // Vorlese-Einstellung (Stimme + Geschwindigkeit), aus den Einstellungen geladen.
 const voicePref = { voiceURI: null, rate: 0.95 };
@@ -42,6 +42,7 @@ const menuBtn = document.getElementById("menu-btn");
 // Seitenmenü mit Kategorien und Unterkategorien.
 const MENU = [
   { label: "Start", icon: "🏠", tab: "dashboard" },
+  { label: "KI-Assistent", icon: "💬", tab: "assistent" },
   {
     label: "Dokumente",
     icon: "📄",
@@ -90,6 +91,7 @@ function setTab(tabId) {
     if (typeof Angehoerige !== "undefined") Angehoerige.reset();
     if (typeof Erinnerungen !== "undefined") Erinnerungen.reset();
     if (typeof Kontakte !== "undefined") Kontakte.reset();
+    if (typeof Assistent !== "undefined") Assistent.reset();
   }
   state.tab = tabId;
   render();
@@ -243,7 +245,7 @@ async function renderDashboard(container) {
         ${KI_EXAMPLES.map((q) => `<button class="ki-example" data-example="${UI.esc(q)}">${UI.esc(q)}</button>`).join("")}
       </div>
       <button class="btn" id="ki-ask">💬 Frage stellen</button>
-      <div id="ki-answer"></div>
+      <p class="muted" style="margin-top:8px;font-size:.95rem">Sie können nachfragen und ein Gespräch führen — die Antworten werden Ihnen auf Wunsch vorgelesen.</p>
     </div>
   `;
 
@@ -266,72 +268,34 @@ async function renderDashboard(container) {
     });
   }
 
+  // „Frag die KI" führt in den Dialog-Assistenten.
   container.querySelectorAll("[data-example]").forEach((el) =>
-    el.addEventListener("click", () => {
-      container.querySelector("#ki-input").value = el.dataset.example;
-    }),
+    el.addEventListener("click", () => openAssistent(el.dataset.example, false)),
   );
 
-  // Sprachbutton: Frage einsprechen (Browser-Spracherkennung, rein lokal).
   const micBtn = container.querySelector("#ki-mic");
   if (micBtn) {
-    if (typeof Voice === "undefined" || !Voice.supported()) {
-      micBtn.style.display = "none"; // Browser unterstützt keine Spracheingabe
-    } else {
-      let active = null;
-      micBtn.addEventListener("click", () => {
-        const input = container.querySelector("#ki-input");
-        if (active) {
-          active.stop();
-          return;
-        }
-        active = Voice.listen({
-          onStart: () => micBtn.classList.add("recording"),
-          onResult: (text) => {
-            if (text) input.value = input.value ? input.value.trim() + " " + text : text;
-          },
-          onEnd: () => {
-            micBtn.classList.remove("recording");
-            active = null;
-            input.focus();
-          },
-          onError: (code) => {
-            micBtn.classList.remove("recording");
-            active = null;
-            if (code === "not-allowed" || code === "service-not-allowed") {
-              alert("Für die Spracheingabe bitte den Zugriff auf das Mikrofon erlauben.");
-            }
-          },
-        });
-      });
-    }
+    const micPossible = typeof Voice !== "undefined" && (Voice.supported() || Voice.onIOS());
+    if (!micPossible) micBtn.style.display = "none";
+    else micBtn.addEventListener("click", () => openAssistent(null, true));
   }
 
   const askBtn = container.querySelector("#ki-ask");
-  askBtn.addEventListener("click", async () => {
-    const input = container.querySelector("#ki-input");
-    const answer = container.querySelector("#ki-answer");
-    const frage = input.value.trim();
-    if (!frage) return;
-    askBtn.disabled = true;
-    answer.innerHTML = `<div class="card muted ki-thinking"><span class="spinner"></span><span>Die KI liest Ihre Frage und antwortet gleich …</span></div>`;
-    try {
-      const data = await KI.chat([{ role: "user", content: frage }]);
-      answer.innerHTML = UI.resultHtml(data);
-      if (data.modul && data.modul !== "keines" && TABS.some((t) => t.id === data.modul)) {
-        const go = document.createElement("button");
-        go.className = "btn";
-        go.style.marginTop = "12px";
-        go.textContent = "Dorthin wechseln";
-        go.addEventListener("click", () => setTab(data.modul));
-        answer.querySelector(".ui-result").appendChild(go);
-      }
-    } catch (err) {
-      answer.innerHTML = `<div class="card">⚠️ ${UI.esc(err.message || "Fehler bei der KI-Anfrage.")}</div>`;
-    } finally {
-      askBtn.disabled = false;
-    }
+  askBtn.addEventListener("click", () => {
+    const frage = container.querySelector("#ki-input").value.trim();
+    if (frage) openAssistent(frage, false);
   });
+}
+
+// Öffnet den KI-Assistenten – optional mit einer ersten Frage oder direkt mit Mikrofon.
+function openAssistent(question, listen) {
+  if (typeof Assistent === "undefined") return;
+  Assistent.reset();
+  if (question) Assistent.startWith(question);
+  if (listen) Assistent.startListening();
+  state.tab = "assistent";
+  render();
+  window.scrollTo({ top: 0 });
 }
 
 function placeholderView(title, subtitle, hint) {
@@ -344,6 +308,7 @@ function placeholderView(title, subtitle, hint) {
 
 function viewMehr() {
   const items = [
+    ["💬", "KI-Assistent", "assistent"],
     ["🆘", "Notfall", "notfall"],
     ["📇", "Meine Kontakte", "kontakte"],
     ["⏰", "Erinnerungen", "erinnerungen"],
@@ -743,6 +708,10 @@ function render() {
   }
   if (state.tab === "kontakte") {
     Kontakte.renderInto(app);
+    return;
+  }
+  if (state.tab === "assistent") {
+    Assistent.renderInto(app);
     return;
   }
   if (state.tab === "einstellungen") {

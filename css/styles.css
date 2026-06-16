@@ -464,6 +464,22 @@ body.no-scroll {
   50% { box-shadow: 0 0 0 8px rgba(238, 93, 80, 0); }
 }
 
+/* ---------- KI-Assistent: Vorlesen je Antwort ---------- */
+.mini-action {
+  margin-top: 10px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #eef2f9;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.chat-bubble.chat-ai {
+  max-width: 92%;
+}
+
 /* ---------- KI: Lade-/Denk-Anzeige ---------- */
 .ki-thinking {
   display: flex;
