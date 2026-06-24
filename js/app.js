@@ -8,7 +8,7 @@ const state = {
   tab: "dashboard",
 };
 
-const APP_VERSION = "0.3.2";
+const APP_VERSION = "0.3.3";
 
 // Vorlese-Einstellung (Stimme + Geschwindigkeit), aus den Einstellungen geladen.
 const voicePref = { voiceURI: null, rate: 0.95 };
@@ -101,6 +101,17 @@ function setTab(tabId) {
 
 // ---- Ansichten je Tab ----
 
+// Tageszeiten eines Medikaments (ohne Zeitangabe = eine Einnahme „Tag").
+const AS_NEEDED = "Bei Bedarf";
+function medSlots(med) {
+  const t = (med.times || []).filter(Boolean);
+  return t.length ? t : ["Tag"];
+}
+// Einnahmen, die zum Tagespensum zählen (ohne „Bei Bedarf").
+function requiredSlots(med) {
+  return medSlots(med).filter((s) => s !== AS_NEEDED);
+}
+
 // Sammelt offene Aufgaben aus bereits geladenen Dokument-Analysen.
 function collectTasks(docs) {
   const tasks = [];
@@ -135,8 +146,16 @@ async function renderDashboard(container) {
   // Heute bereits bestätigte Einnahmen (Schlüssel "<medId>|<YYYY-MM-DD>").
   const now = new Date();
   const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  const takenToday = new Set(intakes.filter((r) => r.date === todayKey).map((r) => r.medId));
-  const takenCount = meds.filter((m) => takenToday.has(m.id)).length;
+  // Pro Tageszeit: Menge "<medId>|<slot>", die heute schon eingenommen sind.
+  const takenToday = new Set(intakes.filter((r) => r.date === todayKey).map((r) => `${r.medId}|${r.slot || "Tag"}`));
+  let totalDoses = 0;
+  let takenDoses = 0;
+  for (const m of meds) {
+    for (const s of requiredSlots(m)) {
+      totalDoses++;
+      if (takenToday.has(`${m.id}|${s}`)) takenDoses++;
+    }
+  }
 
   // Tageszeit-Begrüßung (mit Vorname aus dem Profil) + ausgeschriebenes Datum.
   const vorname = (profil.name || "").trim().split(/\s+/)[0] || "";
@@ -156,12 +175,12 @@ async function renderDashboard(container) {
     : "";
 
   // Tagesfortschritt bei den Medikamenten.
-  const progressPct = meds.length ? Math.round((takenCount / meds.length) * 100) : 0;
-  const progressHtml = meds.length
+  const progressPct = totalDoses ? Math.round((takenDoses / totalDoses) * 100) : 0;
+  const progressHtml = totalDoses
     ? `<div class="card">
          <div style="display:flex;justify-content:space-between;align-items:center">
-           <strong>💊 Medikamente heute</strong>
-           <span class="muted">${takenCount} von ${meds.length}</span>
+           <strong>💊 Einnahmen heute</strong>
+           <span class="muted">${takenDoses} von ${totalDoses}</span>
          </div>
          <div class="progress"><div class="progress-bar" style="width:${progressPct}%"></div></div>
        </div>`
@@ -170,10 +189,16 @@ async function renderDashboard(container) {
   const heuteMeds = meds.length
     ? `<ul class="list">${meds
         .map((m) => {
-          const done = takenToday.has(m.id);
-          return `<li><span aria-hidden="true">${done ? "✅" : "💊"}</span> <span style="flex:1"><strong>${UI.esc(m.name)}</strong>${
-            m.times && m.times.length ? ` — ${UI.esc(m.times.join(", "))}` : ""
-          }${done ? ' <span class="muted">(heute eingenommen)</span>' : ""}</span></li>`;
+          const slots = medSlots(m);
+          const allDone = requiredSlots(m).every((s) => takenToday.has(`${m.id}|${s}`));
+          const chips = slots
+            .map((s) => {
+              const done = takenToday.has(`${m.id}|${s}`);
+              const lbl = s === "Tag" ? "" : " " + UI.esc(s);
+              return `<span class="dose-mini ${done ? "done" : ""}">${done ? "✓" : "○"}${lbl}</span>`;
+            })
+            .join(" ");
+          return `<li><span aria-hidden="true">${allDone ? "✅" : "💊"}</span> <span style="flex:1"><strong>${UI.esc(m.name)}</strong><div class="dose-mini-row">${chips}</div></span></li>`;
         })
         .join("")}</ul>`
     : `<div class="card muted">🔔 Keine Medikamente eingetragen.</div>`;
@@ -195,7 +220,7 @@ async function renderDashboard(container) {
                <div class="due-name">💊 ${UI.esc(d.med.name)}</div>
                <div class="due-time">${UI.esc(d.label)} · ${UI.esc(d.uhr)} Uhr${d.med.dose ? " · " + UI.esc(d.med.dose) : ""}</div>
              </div>
-             <button class="btn" data-take-due="${UI.esc(d.med.id)}">✅ Eingenommen</button>
+             <button class="btn" data-take-due="${UI.esc(d.med.id)}" data-slot="${UI.esc(d.label)}">✅ Eingenommen</button>
            </div>`,
          )
          .join("")}`
@@ -211,7 +236,7 @@ async function renderDashboard(container) {
     ${onboardHtml}
 
     <div class="stat-grid">
-      <div class="stat"><div class="stat-icon" aria-hidden="true">💊</div><div class="stat-num">${takenCount}/${meds.length}</div><div class="stat-label">heute genommen</div></div>
+      <div class="stat"><div class="stat-icon" aria-hidden="true">💊</div><div class="stat-num">${takenDoses}/${totalDoses}</div><div class="stat-label">Einnahmen heute</div></div>
       <div class="stat"><div class="stat-icon" aria-hidden="true">✅</div><div class="stat-num">${tasks.length}</div><div class="stat-label">offene Aufgaben</div></div>
       <div class="stat"><div class="stat-icon" aria-hidden="true">📄</div><div class="stat-num">${docs.length}</div><div class="stat-label">Dokumente</div></div>
     </div>
@@ -255,7 +280,8 @@ async function renderDashboard(container) {
   container.querySelectorAll("[data-take-due]").forEach((el) =>
     el.addEventListener("click", async () => {
       const medId = el.dataset.takeDue;
-      await DB.put({ id: `${medId}|${todayKey}`, medId, date: todayKey, ts: Date.now() }, "intakes");
+      const slot = el.dataset.slot || "Tag";
+      await DB.put({ id: `${medId}|${slot}|${todayKey}`, medId, slot, date: todayKey, ts: Date.now() }, "intakes");
       renderDashboard(container);
     }),
   );
@@ -847,8 +873,21 @@ drawer.addEventListener("click", (e) => {
   if (groupItem) groupItem.parentElement.classList.toggle("open");
 });
 
-// ---- Info-/Willkommens-Popup ----
-function showWelcome() {
+// ---- Info-Popup: „Wichtig heute" (fällige Einnahmen + offene Aufgaben) ----
+async function buildInfoData() {
+  const [docs, due] = await Promise.all([
+    DB.getAll(),
+    typeof Erinnerungen !== "undefined" ? Erinnerungen.getDue() : Promise.resolve([]),
+  ]);
+  return { due, tasks: collectTasks(docs) };
+}
+
+async function showInfoPopup() {
+  const { due, tasks } = await buildInfoData();
+  const now = new Date();
+  const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const dateStr = now.toLocaleDateString("de-DE", { weekday: "long", day: "numeric", month: "long" });
+
   let ov = document.getElementById("info-modal");
   if (!ov) {
     ov = document.createElement("div");
@@ -857,21 +896,35 @@ function showWelcome() {
     ov.hidden = true;
     document.body.appendChild(ov);
   }
+
+  const dueHtml = due.length
+    ? `<strong>⏰ Jetzt fällig</strong>${due
+        .map(
+          (d) => `<div class="info-item">
+            <div style="flex:1"><strong>💊 ${UI.esc(d.med.name)}</strong><div class="muted">${UI.esc(d.label)} · ${UI.esc(d.uhr)} Uhr${d.med.dose ? " · " + UI.esc(d.med.dose) : ""}</div></div>
+            <button class="btn info-take" data-med="${UI.esc(d.med.id)}" data-slot="${UI.esc(d.label)}" style="width:auto;padding:11px 15px">✓ Eingenommen</button>
+          </div>`,
+        )
+        .join("")}`
+    : "";
+  const tasksHtml = tasks.length
+    ? `<div style="margin-top:${due.length ? "18px" : "0"}"><strong>✅ Offene Aufgaben</strong>${tasks
+        .map((t) => `<div class="muted" style="margin-top:8px">• ${UI.esc(t.titel)}</div>`)
+        .join("")}</div>`
+    : "";
+  const nothing = !due.length && !tasks.length;
+
   ov.innerHTML = `
-    <div class="modal-card" role="dialog" aria-modal="true" aria-label="Willkommen">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-label="Wichtig heute">
       <div class="modal-head">
-        <div class="mh-title">👋 Willkommen!</div>
-        <div class="mh-sub">Ihr Alltagsbegleiter – einfache Hilfe für jeden Tag</div>
+        <div class="mh-title">${nothing ? "👍 Alles im Blick" : "👋 Das ist heute wichtig"}</div>
+        <div class="mh-sub">${UI.esc(dateStr)}</div>
       </div>
       <div class="modal-body">
-        <div class="modal-feat"><span class="mf-icon" aria-hidden="true">💬</span><span><strong>KI-Assistent</strong> – Fragen stellen, auch per Sprache, und Antworten vorlesen lassen.</span></div>
-        <div class="modal-feat"><span class="mf-icon" aria-hidden="true">📷</span><span><strong>Dokumente</strong> – einfach fotografieren und in leichter Sprache erklären lassen.</span></div>
-        <div class="modal-feat"><span class="mf-icon" aria-hidden="true">💊</span><span><strong>Mediplan &amp; Erinnerungen</strong> – Medikamente und Einnahmen im Blick.</span></div>
-        <div class="modal-feat"><span class="mf-icon" aria-hidden="true">📝</span><span><strong>Formulare</strong> – Anträge Schritt für Schritt ausfüllen.</span></div>
-        <div class="modal-feat"><span class="mf-icon" aria-hidden="true">🆘</span><span><strong>Notfall &amp; Kontakte</strong> – wichtige Nummern immer griffbereit.</span></div>
-        <div class="card" style="margin-top:18px;background:#fff8e6;border:1px solid #f3e2a6">🔒 Alle Daten bleiben nur auf Ihrem Gerät. Die App ersetzt keine ärztliche Beratung – im Notfall 112.</div>
-        <button class="btn" id="info-ok" style="margin-top:18px">Los geht’s</button>
-        <button class="btn" id="info-legal" style="margin-top:10px;background:#e8edf6;color:var(--text)">Datenschutz &amp; Rechtliches</button>
+        ${dueHtml}
+        ${tasksHtml}
+        ${nothing ? `<div class="card muted">Aktuell ist nichts Dringendes offen. Schauen Sie jederzeit im Menü vorbei.</div>` : ""}
+        <button class="btn" id="info-ok" style="margin-top:18px">${nothing ? "Alles klar" : "Schließen"}</button>
       </div>
     </div>`;
   ov.hidden = false;
@@ -884,27 +937,40 @@ function showWelcome() {
     setTimeout(() => { ov.hidden = true; }, 220);
   };
   ov.querySelector("#info-ok").addEventListener("click", close);
-  ov.querySelector("#info-legal").addEventListener("click", () => { close(); setTab("rechtliches"); });
   ov.addEventListener("click", (e) => { if (e.target === ov) close(); });
+
+  // Direkt aus dem Popup eine Einnahme bestätigen.
+  ov.querySelectorAll(".info-take").forEach((b) =>
+    b.addEventListener("click", async () => {
+      const medId = b.dataset.med;
+      const slot = b.dataset.slot || "Tag";
+      await DB.put({ id: `${medId}|${slot}|${todayKey}`, medId, slot, date: todayKey, ts: Date.now() }, "intakes");
+      if (state.tab === "dashboard") render(); // Dashboard im Hintergrund aktualisieren
+      showInfoPopup(); // Popup mit aktualisierter Liste neu aufbauen
+    }),
+  );
 }
 
-// Beim allerersten Start automatisch zeigen (Merker in den Einstellungen).
-async function maybeShowWelcome() {
+// Beim Öffnen automatisch zeigen, wenn etwas Wichtiges ansteht — höchstens einmal pro Tag.
+async function maybeShowInfo() {
+  const now = new Date();
+  const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   const set = (await DB.get("einstellungen", "settings")) || {};
-  if (!set.welcomeSeen) {
-    showWelcome();
-    await DB.put({ id: "einstellungen", ...set, welcomeSeen: true }, "settings");
-  }
+  if (set.lastInfoDate === todayKey) return;
+  const { due, tasks } = await buildInfoData();
+  if (!due.length && !tasks.length) return; // nichts Wichtiges → nicht stören
+  await DB.put({ id: "einstellungen", ...set, lastInfoDate: todayKey }, "settings");
+  showInfoPopup();
 }
 
-if (helpBtn) helpBtn.addEventListener("click", showWelcome);
+if (helpBtn) helpBtn.addEventListener("click", showInfoPopup);
 
 render();
 
 // Gespeicherte Schriftgröße und Vorlese-Einstellung anwenden.
 applyFontScale();
 loadVoicePref();
-maybeShowWelcome();
+maybeShowInfo();
 
 // Erinnerungs-Watcher starten (zeigt Benachrichtigungen zur Uhrzeit, solange die App offen ist).
 if (typeof Erinnerungen !== "undefined") Erinnerungen.startWatcher();

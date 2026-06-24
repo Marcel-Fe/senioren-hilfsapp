@@ -468,6 +468,47 @@ body.no-scroll {
   50% { box-shadow: 0 0 0 8px rgba(238, 93, 80, 0); }
 }
 
+/* ---------- Mediplan: Tageszeit-Einnahme-Knöpfe ---------- */
+.dose-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+.dose-btn {
+  padding: 12px 16px;
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.dose-btn.done {
+  background: #d6f5dd;
+  border-color: #0f5132;
+  color: #0f5132;
+}
+.dose-mini-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+.dose-mini {
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #eef2f9;
+  color: var(--text-muted);
+}
+.dose-mini.done {
+  background: #d6f5dd;
+  color: #0f5132;
+}
+
 /* ---------- Info-/Willkommens-Popup ---------- */
 .modal-overlay {
   position: fixed;
@@ -530,6 +571,16 @@ body.no-scroll {
   flex: none;
   width: 34px;
   text-align: center;
+}
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.info-item:last-of-type {
+  border-bottom: none;
 }
 
 /* ---------- KI-Assistent: Vorlesen je Antwort ---------- */

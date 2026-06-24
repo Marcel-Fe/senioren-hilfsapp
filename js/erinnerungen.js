@@ -23,7 +23,6 @@ const Erinnerungen = (() => {
   function reset() {}
 
   const dayKey = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-  const intakeId = (medId, date) => `${medId}|${date}`;
 
   async function load() {
     const s = (await DB.get(ID, "settings")) || { id: ID };
@@ -32,11 +31,11 @@ const Erinnerungen = (() => {
     return s;
   }
 
-  // Menge der Medikament-IDs, die heute schon als eingenommen bestätigt sind.
+  // Menge "<medId>|<slot>", die heute schon eingenommen sind (alte Einträge ohne Slot = "Tag").
   async function takenTodaySet() {
     const today = dayKey(new Date());
     const all = await DB.getAll("intakes");
-    return new Set(all.filter((r) => r.date === today).map((r) => r.medId));
+    return new Set(all.filter((r) => r.date === today).map((r) => `${r.medId}|${r.slot || "Tag"}`));
   }
 
   // Aktuelle Uhrzeit als Minuten seit Mitternacht.
@@ -58,12 +57,13 @@ const Erinnerungen = (() => {
 
     const due = [];
     for (const med of meds) {
-      if (taken.has(med.id)) continue;
-      const slots = (med.times || []).filter((t) => s.zeiten[t]); // nur Zeiten mit Uhrzeit (nicht „Bei Bedarf")
-      const faellig = slots.filter((t) => hmToMin(s.zeiten[t]) <= nowMin);
-      if (faellig.length) {
-        const erste = faellig.sort((a, b) => hmToMin(s.zeiten[a]) - hmToMin(s.zeiten[b]))[0];
-        due.push({ med, label: erste, uhr: s.zeiten[erste] });
+      // Nur Tageszeiten mit hinterlegter Uhrzeit (also nicht „Bei Bedarf"), die fällig und offen sind.
+      const slots = (med.times || [])
+        .filter((t) => s.zeiten[t] && hmToMin(s.zeiten[t]) <= nowMin)
+        .filter((t) => !taken.has(`${med.id}|${t}`))
+        .sort((a, b) => hmToMin(s.zeiten[a]) - hmToMin(s.zeiten[b]));
+      for (const slot of slots) {
+        due.push({ med, label: slot, uhr: s.zeiten[slot] });
       }
     }
     return due;
@@ -88,9 +88,9 @@ const Erinnerungen = (() => {
       const meds = await DB.getAll("medications");
       const taken = await takenTodaySet();
       for (const med of meds) {
-        if (taken.has(med.id)) continue;
         for (const label of med.times || []) {
           if (s.zeiten[label] !== hm) continue;
+          if (taken.has(`${med.id}|${label}`)) continue;
           const key = `${med.id}|${label}|${today}`;
           if (notified.has(key)) continue;
           notified.add(key);
