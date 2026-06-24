@@ -468,6 +468,70 @@ body.no-scroll {
   50% { box-shadow: 0 0 0 8px rgba(238, 93, 80, 0); }
 }
 
+/* ---------- Info-/Willkommens-Popup ---------- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 20, 40, 0.5);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.modal-overlay.show {
+  opacity: 1;
+}
+.modal-overlay[hidden] {
+  display: none;
+}
+.modal-card {
+  background: var(--surface);
+  border-radius: 24px;
+  max-width: 460px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+  transform: translateY(14px);
+  transition: transform 0.22s ease;
+}
+.modal-overlay.show .modal-card {
+  transform: translateY(0);
+}
+.modal-head {
+  background: linear-gradient(135deg, #4318ff 0%, #868cff 55%, #6ad2ff 100%);
+  color: #fff;
+  padding: 24px 22px;
+  border-radius: 24px 24px 0 0;
+}
+.modal-head .mh-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+.modal-head .mh-sub {
+  opacity: 0.92;
+  margin-top: 4px;
+}
+.modal-body {
+  padding: 20px 22px 24px;
+}
+.modal-feat {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-top: 14px;
+  font-size: 1.08rem;
+}
+.modal-feat .mf-icon {
+  font-size: 1.5rem;
+  flex: none;
+  width: 34px;
+  text-align: center;
+}
+
 /* ---------- KI-Assistent: Vorlesen je Antwort ---------- */
 .mini-action {
   margin-top: 10px;

@@ -8,7 +8,7 @@ const state = {
   tab: "dashboard",
 };
 
-const APP_VERSION = "0.3.1";
+const APP_VERSION = "0.3.2";
 
 // Vorlese-Einstellung (Stimme + Geschwindigkeit), aus den Einstellungen geladen.
 const voicePref = { voiceURI: null, rate: 0.95 };
@@ -38,6 +38,7 @@ const app = document.getElementById("app");
 const drawer = document.getElementById("drawer");
 const overlay = document.getElementById("overlay");
 const menuBtn = document.getElementById("menu-btn");
+const helpBtn = document.getElementById("help-btn");
 
 // Seitenmenü mit Kategorien und Unterkategorien.
 const MENU = [
@@ -100,9 +101,8 @@ function setTab(tabId) {
 
 // ---- Ansichten je Tab ----
 
-// Sammelt offene Aufgaben aus gespeicherten Dokument-Analysen.
-async function collectTasks() {
-  const docs = await DB.getAll();
+// Sammelt offene Aufgaben aus bereits geladenen Dokument-Analysen.
+function collectTasks(docs) {
   const tasks = [];
   for (const doc of docs) {
     const a = doc.analysis;
@@ -120,9 +120,14 @@ const KI_EXAMPLES = [
 ];
 
 async function renderDashboard(container) {
-  const tasks = await collectTasks();
-  const meds = await DB.getAll("medications");
-  const docs = await DB.getAll();
+  // Alle benötigten Daten parallel laden (schnelleres Öffnen).
+  const [docs, meds, intakes, profil] = await Promise.all([
+    DB.getAll(),
+    DB.getAll("medications"),
+    DB.getAll("intakes"),
+    typeof Profil !== "undefined" ? Profil.get() : Promise.resolve({}),
+  ]);
+  const tasks = collectTasks(docs);
   const statusText = tasks.length
     ? `${tasks.length} offene ${tasks.length === 1 ? "Aufgabe" : "Aufgaben"}`
     : "Alles erledigt";
@@ -130,12 +135,10 @@ async function renderDashboard(container) {
   // Heute bereits bestätigte Einnahmen (Schlüssel "<medId>|<YYYY-MM-DD>").
   const now = new Date();
   const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  const intakes = await DB.getAll("intakes");
   const takenToday = new Set(intakes.filter((r) => r.date === todayKey).map((r) => r.medId));
   const takenCount = meds.filter((m) => takenToday.has(m.id)).length;
 
   // Tageszeit-Begrüßung (mit Vorname aus dem Profil) + ausgeschriebenes Datum.
-  const profil = typeof Profil !== "undefined" ? await Profil.get() : {};
   const vorname = (profil.name || "").trim().split(/\s+/)[0] || "";
   const h = now.getHours();
   const tag = h < 11 ? "Guten Morgen" : h < 18 ? "Guten Tag" : "Guten Abend";
@@ -844,11 +847,64 @@ drawer.addEventListener("click", (e) => {
   if (groupItem) groupItem.parentElement.classList.toggle("open");
 });
 
+// ---- Info-/Willkommens-Popup ----
+function showWelcome() {
+  let ov = document.getElementById("info-modal");
+  if (!ov) {
+    ov = document.createElement("div");
+    ov.id = "info-modal";
+    ov.className = "modal-overlay";
+    ov.hidden = true;
+    document.body.appendChild(ov);
+  }
+  ov.innerHTML = `
+    <div class="modal-card" role="dialog" aria-modal="true" aria-label="Willkommen">
+      <div class="modal-head">
+        <div class="mh-title">👋 Willkommen!</div>
+        <div class="mh-sub">Ihr Alltagsbegleiter – einfache Hilfe für jeden Tag</div>
+      </div>
+      <div class="modal-body">
+        <div class="modal-feat"><span class="mf-icon" aria-hidden="true">💬</span><span><strong>KI-Assistent</strong> – Fragen stellen, auch per Sprache, und Antworten vorlesen lassen.</span></div>
+        <div class="modal-feat"><span class="mf-icon" aria-hidden="true">📷</span><span><strong>Dokumente</strong> – einfach fotografieren und in leichter Sprache erklären lassen.</span></div>
+        <div class="modal-feat"><span class="mf-icon" aria-hidden="true">💊</span><span><strong>Mediplan &amp; Erinnerungen</strong> – Medikamente und Einnahmen im Blick.</span></div>
+        <div class="modal-feat"><span class="mf-icon" aria-hidden="true">📝</span><span><strong>Formulare</strong> – Anträge Schritt für Schritt ausfüllen.</span></div>
+        <div class="modal-feat"><span class="mf-icon" aria-hidden="true">🆘</span><span><strong>Notfall &amp; Kontakte</strong> – wichtige Nummern immer griffbereit.</span></div>
+        <div class="card" style="margin-top:18px;background:#fff8e6;border:1px solid #f3e2a6">🔒 Alle Daten bleiben nur auf Ihrem Gerät. Die App ersetzt keine ärztliche Beratung – im Notfall 112.</div>
+        <button class="btn" id="info-ok" style="margin-top:18px">Los geht’s</button>
+        <button class="btn" id="info-legal" style="margin-top:10px;background:#e8edf6;color:var(--text)">Datenschutz &amp; Rechtliches</button>
+      </div>
+    </div>`;
+  ov.hidden = false;
+  document.body.classList.add("no-scroll");
+  requestAnimationFrame(() => ov.classList.add("show"));
+
+  const close = () => {
+    ov.classList.remove("show");
+    document.body.classList.remove("no-scroll");
+    setTimeout(() => { ov.hidden = true; }, 220);
+  };
+  ov.querySelector("#info-ok").addEventListener("click", close);
+  ov.querySelector("#info-legal").addEventListener("click", () => { close(); setTab("rechtliches"); });
+  ov.addEventListener("click", (e) => { if (e.target === ov) close(); });
+}
+
+// Beim allerersten Start automatisch zeigen (Merker in den Einstellungen).
+async function maybeShowWelcome() {
+  const set = (await DB.get("einstellungen", "settings")) || {};
+  if (!set.welcomeSeen) {
+    showWelcome();
+    await DB.put({ id: "einstellungen", ...set, welcomeSeen: true }, "settings");
+  }
+}
+
+if (helpBtn) helpBtn.addEventListener("click", showWelcome);
+
 render();
 
 // Gespeicherte Schriftgröße und Vorlese-Einstellung anwenden.
 applyFontScale();
 loadVoicePref();
+maybeShowWelcome();
 
 // Erinnerungs-Watcher starten (zeigt Benachrichtigungen zur Uhrzeit, solange die App offen ist).
 if (typeof Erinnerungen !== "undefined") Erinnerungen.startWatcher();
