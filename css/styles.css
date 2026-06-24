@@ -80,7 +80,11 @@ body.no-scroll {
   background: rgba(255, 255, 255, 0.3);
 }
 .app-logo {
-  font-size: 1.7rem;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: block;
+  flex: none;
 }
 .app-title {
   font-size: 1.2rem;

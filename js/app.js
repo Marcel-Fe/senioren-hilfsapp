@@ -8,7 +8,7 @@ const state = {
   tab: "dashboard",
 };
 
-const APP_VERSION = "0.3.0";
+const APP_VERSION = "0.3.1";
 
 // Vorlese-Einstellung (Stimme + Geschwindigkeit), aus den Einstellungen geladen.
 const voicePref = { voiceURI: null, rate: 0.95 };
